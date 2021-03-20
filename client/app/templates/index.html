@@ -1,0 +1,24 @@
+<!DOCTYPE html>
+<html>
+  <style>
+.header {
+  background-color: #4CAF50;
+  color: white;
+  padding: 16px;
+  font-size: x-large;
+}
+  </style>
+  <body>
+    <div class="header"><b>Client</b></div>
+
+    <h2>Get Token</h2>
+
+    <form action="/gettoken" method="post">
+      <label for="scope"><b>Scope</b></label>
+      <input type="text" placeholder="Enter scope" name="scope" required>
+
+      <button type="submit">Get token</button>
+    </form>
+
+  </body>
+</html>

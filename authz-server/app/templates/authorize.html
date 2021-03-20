@@ -1,0 +1,35 @@
+<!DOCTYPE html>
+<html>
+  <style>
+.header {
+  background-color: #cf4C50;
+  color: white;
+  padding: 16px;
+  font-size: x-large;
+}
+  </style>
+  <body>
+    <div class="header"><b>Athorization Server</b></div>
+
+    <h2>Authenticate and authorize?</h2>
+
+    <form action="/approve" method="post">
+      <label for="username"><b>Username</b></label>
+      <input type="text" placeholder="Enter Username" name="username" required>
+
+      <label for="password"><b>Password</b></label>
+      <input type="password" placeholder="Enter Password" name="password" required>
+
+      <input type="hidden" name="reqid" value="{{ reqid}}">
+
+      <p>Approve this client?</p>
+      <b><p>{{client_id}}</p></b>
+      <p>Access scope:</p>
+      <b><p>{{scope}}</p></b>
+
+      <input type="submit" name="approve" value="Approve">
+      <input type="submit" name="deny" value="Deny">
+    </form>
+
+  </body>
+</html>
