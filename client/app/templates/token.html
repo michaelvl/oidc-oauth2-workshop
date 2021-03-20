@@ -6,12 +6,37 @@
   color: white;
   padding: 16px;
 }
+.framed {
+  border: 2px solid grey;
+  border-radius: 5px;
+  padding-top: 10px;
+  padding-right: 10px;
+  padding-bottom: 10px;
+  padding-left: 10px;
+}
   </style>
   <body>
     <div class="header"><b>Client</b></div>
 
-    <h2>Token</h2>
+    <h2>Step 3: Token Received by Client</h2>
 
-    <p>{{token}}</p>
+    <p>This is the ID-token we received</p>
+    <div class="framed"><p>{{token}}</p></div>
+
+    <p>ID-tokens are not opaque i.e. they can be parsed by the client. The following is the content of the ID-token:</p>
+    <div class="framed"><p>{{token_parsed}}</p></div>
+
+    <p>Some of the common claims are:</p>
+    <ul>
+      <li>sub - Subject, the user the ID-token represents</li>
+      <li>aud - audience, who the token was issued for (i.e. this client)</li>
+      <li>iss - issuer, who issued to token</li>
+      <li>iat - issued at, date when token was issued</li>
+      <li>exp - expires at, date when token no longer is valid</li>
+    </ul>
+
+    <p>See <a href="https://openid.net/specs/openid-connect-basic-1_0.html#IDToken">OIDC ID Token</a> and
+    <a href="https://openid.net/specs/openid-connect-basic-1_0.html#StandardClaims">OIDC Standard Claims</a> for more
+    information on the claims in the token.</p>
   </body>
 </html>

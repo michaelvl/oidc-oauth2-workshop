@@ -7,6 +7,8 @@ import urllib
 import uuid
 import logging
 
+from authlib.jose import jwt, jwk, JsonWebKey
+
 app = flask.Flask('oauth2-client')
 
 logging.basicConfig(level=logging.DEBUG)
@@ -57,9 +59,16 @@ def callback():
         return 'Failed with status {}'.format(response.status_code)
 
     response_json = response.json()
-    log.info("Got token '{}'".format(response_json['access_token']))
+    log.info("Got id token '{}'".format(response_json['id_token']))
+    log.info("Got access token '{}'".format(response_json['access_token']))
 
-    return flask.render_template('token.html', token=response_json['access_token'])
+    # FIXME
+    with open('jwt-key.pub', 'rb') as f:
+        key_data = f.read()
+    pub_key = JsonWebKey.import_key(key_data, {'kty': 'RSA'})
+
+    claims = jwt.decode(response_json['id_token'], pub_key)
+    return flask.render_template('token.html', token=response_json['id_token'], token_parsed=claims)
 
 if __name__ == '__main__':
     app.run(host='0.0.0.0', port=5001)

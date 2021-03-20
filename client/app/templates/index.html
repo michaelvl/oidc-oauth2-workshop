@@ -11,13 +11,23 @@
   <body>
     <div class="header"><b>Client</b></div>
 
-    <h2>Get Token</h2>
+    <h2>Step 1: Login</h2>
+
+    <p>This is the initial step, where we select to login, and where scope defines which claims will be included in our identity-token.</p>
+
+    <p>A 'claim' is metadata about a user, i.e. typically a client will request access to the user 'profile', i.e. request a token with the claim 'profile'. See <a href="https://openid.net/specs/openid-connect-basic-1_0.html#Scopes">OIDC Scopes</a> for a list of standardized scopes. Some typical scopes are:</p>
+
+    <ul>
+      <li>openid</li>
+      <li>profile</li>
+      <li>email</li>
+    </ul>
 
     <form action="/gettoken" method="post">
       <label for="scope"><b>Scope</b></label>
       <input type="text" placeholder="Enter scope" name="scope" required>
 
-      <button type="submit">Get token</button>
+      <button type="submit">Login</button>
     </form>
 
   </body>

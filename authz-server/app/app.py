@@ -112,12 +112,13 @@ def token():
     # TODO: Validate that code matches cliend_id
     # TODO: Validate uri and grant type matches code
 
+    # See https://openid.net/specs/openid-connect-basic-1_0.html#StandardClaims
     claims = dict()
-    if request['scope'] == 'profile':
-        claims['name'] = 'A user named '+user
+    if request['scope'] == 'openid':
+        claims['sub'] = user
 
     token = issue_token(user, claims)
-    response = {'access_token': token, 'token_type': 'Bearer'}
+    response = {'id_token': token, 'access_token': token, 'token_type': 'Bearer'}
 
     return response
 

@@ -7,11 +7,21 @@
   padding: 16px;
   font-size: x-large;
 }
+.framed {
+  border: 2px solid grey;
+  border-radius: 5px;
+  padding-top: 10px;
+  padding-right: 10px;
+  padding-bottom: 10px;
+  padding-left: 10px;
+}
   </style>
   <body>
     <div class="header"><b>Athorization Server</b></div>
 
-    <h2>Authenticate and authorize?</h2>
+    <h2>Step 2: Authenticate and authorize?</h2>
+
+    <p>In this step we authorize who we are towards the identity-provider using e.g. username and password.</p>
 
     <form action="/approve" method="post">
       <label for="username"><b>Username</b></label>
@@ -22,13 +32,17 @@
 
       <input type="hidden" name="reqid" value="{{ reqid}}">
 
-      <p>Approve this client?</p>
-      <b><p>{{client_id}}</p></b>
-      <p>Access scope:</p>
-      <b><p>{{scope}}</p></b>
+      <p>Next, we authorize that tokens with the specified scope can be issued to the client.</p>
 
-      <input type="submit" name="approve" value="Approve">
-      <input type="submit" name="deny" value="Deny">
+      <div class=framed>
+	<p>Approve this client?</p>
+	<b><p>{{client_id}}</p></b>
+	<p>For these scopes:</p>
+	<b><p>{{scope}}</p></b>
+
+	<input type="submit" name="approve" value="Approve">
+	<input type="submit" name="deny" value="Deny">
+      </div>
     </form>
 
   </body>
