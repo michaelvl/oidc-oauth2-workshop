@@ -23,10 +23,10 @@
     <h2>Step 3: Token Received by Client</h2>
 
     <p>This is the ID-token we received:</p>
-    <div class="framed"><p>{{token}}</p></div>
+    <div class="framed"><p>{{id_token}}</p></div>
 
     <p>ID-tokens are not opaque i.e. they can be parsed by the client. The following is the content of the ID-token:</p>
-    <div class="framed"><p>{{token_parsed}}</p></div>
+    <div class="framed"><p>{{id_token_parsed}}</p></div>
 
     <p>Some of the common claims are:</p>
     <ul>
@@ -42,5 +42,11 @@
     information on the claims in the token.</p>
 
     <p>The client must validate the token. See <a href="https://openid.net/specs/openid-connect-basic-1_0.html#IDTokenValidation">ID Token Validation</a>.</p>
+
+    <p>This is the access-token we received:</p>
+    <div class="framed"><p>{{access_token}}</p></div>
+
+    <p>Access tokens are opaque and cannot be parsed by the client.</p>
+
   </body>
 </html>

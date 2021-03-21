@@ -23,11 +23,12 @@ log = logging.getLogger('oauth2-server')
 def build_url(url, **kwargs):
     return '{}?{}'.format(url, urllib.parse.urlencode(kwargs))
 
-def issue_token(sub, claims):
+def issue_id_token(sub):
     with open(jwt_key, 'rb') as f:
         key_data = f.read()
     key = JsonWebKey.import_key(key_data, {'kty': 'RSA'})
 
+    claims = dict()
     claims['sub'] = sub
     #claims['groups'] = ['user']
     claims['iss'] = 'oauth2-server'
@@ -112,13 +113,12 @@ def token():
     # TODO: Validate that code matches cliend_id
     # TODO: Validate uri and grant type matches code
 
-    # See https://openid.net/specs/openid-connect-basic-1_0.html#StandardClaims
-    claims = dict()
-    if request['scope'] == 'openid':
-        claims['sub'] = user
+    # See https://openid.net/specs/openid-connect-basic-1_0.html#StandardClaims for what claims to include in access token
+    access_token = 'xxx'
+    response = {'access_token': access_token, 'token_type': 'Bearer'}
 
-    token = issue_token(user, claims)
-    response = {'id_token': token, 'access_token': token, 'token_type': 'Bearer'}
+    if 'openid' in request['scope']:
+        response['id_token'] = issue_id_token(user)
 
     return response
 

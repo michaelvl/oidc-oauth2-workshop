@@ -18,8 +18,9 @@
     <p>A 'claim' is metadata about a user, i.e. typically a client will request access to the user 'profile', i.e. request a token with the claim 'profile'. See <a href="https://openid.net/specs/openid-connect-basic-1_0.html#Scopes">OIDC Scopes</a> for a list of standardized scopes. Some typical scopes are:</p>
 
     <ul>
-      <li>openid</li>
-      <li>profile</li>
+      <li>openid - indicates that this is an OpenID request. Needed for ID-tokens to be issued.</li>
+      <li>profile - covers grants such as 'name' and 'birthdate'</li>
+      <li>address</li>
       <li>email</li>
     </ul>
 
