@@ -16,6 +16,9 @@
   padding-bottom: 10px;
   padding-left: 10px;
 }
+.verbatim {
+  white-space: pre-wrap;
+}
   </style>
   <body>
     <div class="header"><b>Client</b></div>
@@ -25,12 +28,12 @@
     <p>This is the ID-token we received:</p>
     <div class="framed"><p>{{id_token}}</p></div>
 
-    <p>ID-tokens are not opaque i.e. they can be parsed by the client. The following is the content of the ID-token:</p>
-    <div class="framed"><p>{{id_token_parsed}}</p></div>
+    <p>The 'audience', i.e. the recepient of ID-tokens, are the client itself and ID-tokens should only be used by the client. ID-tokens are not opaque. They can and should be parsed by the client. The following is the content of the ID-token:</p>
+    <div class="framed verbatim"><p>{{id_token_parsed}}</p></div>
 
-    <p>Some of the common claims are:</p>
+    <p>Some standard OIDC claims are:</p>
     <ul>
-      <li>sub - Subject, the user the ID-token represents</li>
+      <li>sub - Subject, the user which the ID-token represents</li>
       <li>aud - audience, who the token was issued for (i.e. this client)</li>
       <li>iss - issuer, who issued to token</li>
       <li>iat - issued at, date when token was issued</li>
@@ -46,7 +49,12 @@
     <p>This is the access-token we received:</p>
     <div class="framed"><p>{{access_token}}</p></div>
 
-    <p>Access tokens are opaque and cannot be parsed by the client.</p>
+    <p>Access tokens are opaque and cannot be parsed by the client. However, the access-token can be used to fetch user information from the 'userinfo' endpoint (subject to the scope of our access-token).</p>
+
+    <form action="/getuserinfo" method="post">
+      <input type="hidden" name="accesstoken" value="{{access_token}}">
+      <button type="submit">Read userinfo using access-token</button>
+    </form>
 
   </body>
 </html>
