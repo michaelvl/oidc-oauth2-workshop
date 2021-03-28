@@ -58,9 +58,13 @@ def api():
     log.info("API: Access token audience: '{}'".format(access_token_json['aud']))
 
     api_response = {
-        'some': 'data',
-        'from': 'protected api'
+        'access token scope': access_token_json['scope'],
     }
+
+    if 'api' in access_token_json['scope']:
+        api_response['info'] = 'the access token allow access to the api'
+    else:
+        api_response['info'] = 'the access token DO NOT allow access to the api'
     
     return flask.Response(json.dumps(api_response), mimetype='application/json')
 

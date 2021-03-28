@@ -130,8 +130,8 @@ def read_api():
         return 'Failed with status {}'.format(response.status_code)
 
     response_json = response.json()
-    return flask.render_template('userinfo.html', access_token=access_token,
-                                 userinfo=json_pretty_print(response_json))
+    return flask.render_template('read-api.html', access_token=access_token,
+                                 api_data=json_pretty_print(response_json))
 
 if __name__ == '__main__':
     app.run(host='0.0.0.0', port=app_port)

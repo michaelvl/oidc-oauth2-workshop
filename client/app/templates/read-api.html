@@ -1,0 +1,34 @@
+<!DOCTYPE html>
+<html>
+  <style>
+.header {
+  background-color: #4CAF50;
+  color: white;
+  padding: 16px;
+  font-size: x-large;
+}
+.framed {
+  background-color: #fff9e6;
+  border: 2px solid grey;
+  border-radius: 5px;
+  padding-top: 10px;
+  padding-right: 10px;
+  padding-bottom: 10px;
+  padding-left: 10px;
+}
+.verbatim {
+  white-space: pre-wrap;
+}
+  </style>
+  <body>
+    <div class="header"><b>Client</b></div>
+
+    <h2>Step 4: API-data Read by Client</h2>
+
+    <p>This is the access-token we used:</p>
+    <div class="framed"><p>{{access_token}}</p></div>
+
+    <p>This is the data we could read from the API using the access-token:</p>
+    <div class="framed verbatim"><p>{{api_data}}</p></div>
+  </body>
+</html>

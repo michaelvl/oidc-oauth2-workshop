@@ -28,7 +28,7 @@
     <p>This is the ID-token we received:</p>
     <div class="framed"><p>{{id_token}}</p></div>
 
-    <p>The 'audience', i.e. the recepient of ID-tokens, are the client itself and ID-tokens should only be used by the client. ID-tokens are not opaque. They can and should be parsed by the client. The following is the content of the ID-token:</p>
+    <p>The 'audience', i.e. the recepient of the ID-token, is the client itself and ID-tokens should only be used by the client. ID-tokens are not opaque. They can and should be parsed by the client. The following is the content of the ID-token:</p>
     <div class="framed verbatim"><p>{{id_token_parsed}}</p></div>
 
     <p>Some standard OIDC claims are:</p>
@@ -55,6 +55,8 @@
       <input type="hidden" name="accesstoken" value="{{access_token}}">
       <button type="submit">Read userinfo using access-token</button>
     </form>
+
+    <p>If the access token scope includes 'api', then we can also read data from the protected API.</p>
 
     <form action="/read-api" method="post">
       <input type="hidden" name="accesstoken" value="{{access_token}}">
