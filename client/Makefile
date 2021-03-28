@@ -13,7 +13,7 @@ build:
 
 .PHONY: run
 run:
-	docker run --rm -p5000:5000 $(IMAGE):$(VERSION)
+	docker run --rm -p5001:5001 $(IMAGE):$(VERSION)
 
 .PHONY: dev
 dev:

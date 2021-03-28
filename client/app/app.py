@@ -18,8 +18,12 @@ log = logging.getLogger('oauth2-client')
 oauth2_url = os.getenv('OAUTH2_URL', 'http://127.0.0.1:5000/authorize')
 oauth2_token_url = os.getenv('OAUTH2_TOKEN_URL', 'http://127.0.0.1:5000/token')
 oauth2_userinfo_url = os.getenv('OAUTH2_USERINFO_URL', 'http://127.0.0.1:5000/userinfo')
+oidc_jwks_url = os.getenv('OIDC_JWKS_URL', 'http://127.0.0.1:5000/.well-known/jwks.json')
 client_id = os.getenv('CLIENT_ID', 'client-123-id')
 client_password = os.getenv('CLIENT_PASSWORD', 'client-123-password')
+app_port = int(os.getenv('APP_PORT', '5001'))
+api_base_url = os.getenv('API_BASE_URL', 'http://127.0.0.1:5002')
+
 redirect_uri = 'http://127.0.0.1:5001/callback'
 
 def build_url(url, **kwargs):
@@ -30,6 +34,13 @@ def encode_client_creds(client_id, client_password):
 
 def json_pretty_print(json_data):
     return json.dumps(json_data, indent=4, sort_keys=True)
+
+def token_get_jwk(token):
+    response = requests.get(oidc_jwks_url)
+    jwks = response.json()
+    log.info("Got JWKS '{}'".format(jwks))
+    # TODO: Match 'kid' towards keys in key-set (we assume first key is a match)
+    return jwks['keys'][0]
 
 @app.route('/', methods=['GET'])
 def index():
@@ -72,12 +83,12 @@ def callback():
         if token_type in response_json:
             log.info("Got {} token '{}'".format(token_type, response_json[token_type]))
 
-    # FIXME
-    with open('jwt-key.pub', 'rb') as f:
-        key_data = f.read()
-    pub_key = JsonWebKey.import_key(key_data, {'kty': 'RSA'})
+    id_token = response_json['id_token']
 
-    claims = jwt.decode(response_json['id_token'], pub_key)
+    token_pub_jwk_json = token_get_jwk(id_token)
+    token_pub_jwk = JsonWebKey.import_key(token_pub_jwk_json)
+
+    claims = jwt.decode(id_token, token_pub_jwk)
 
     return flask.render_template('token.html',
                                  id_token=response_json['id_token'],
@@ -103,5 +114,24 @@ def get_userinfo():
     return flask.render_template('userinfo.html', access_token=access_token,
                                  userinfo=json_pretty_print(response_json))
 
+@app.route('/read-api', methods=['POST'])
+def read_api():
+    req = flask.request
+    access_token = req.form.get('accesstoken')
+    log.info('Get UserInfo, access-token: {}'.format(access_token))
+
+    # FIXME bearer, type
+    headers = {'Authorization': 'Bearer '+access_token}
+
+    log.info("Reading from API url: '{}'".format(api_base_url))
+    response = requests.get(api_base_url+'/api', headers=headers)
+
+    if response.status_code != 200:
+        return 'Failed with status {}'.format(response.status_code)
+
+    response_json = response.json()
+    return flask.render_template('userinfo.html', access_token=access_token,
+                                 userinfo=json_pretty_print(response_json))
+
 if __name__ == '__main__':
-    app.run(host='0.0.0.0', port=5001)
+    app.run(host='0.0.0.0', port=app_port)

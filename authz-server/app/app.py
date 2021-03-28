@@ -16,26 +16,34 @@ requests = dict()
 codes = dict()
 
 jwt_key = os.getenv('JWT_KEY', 'jwt-key')
+app_port = int(os.getenv('APP_PORT', '5000'))
+own_base_url = os.getenv('APP_BASE_URL', 'http://127.0.0.1:5000')
+api_base_url = os.getenv('API_BASE_URL', 'http://127.0.0.1:5002/api')
+
 
 logging.basicConfig(level=logging.DEBUG)
 log = logging.getLogger('oauth2-server')
+
+with open(jwt_key, 'rb') as f:
+    key_data = f.read()
+signing_key = JsonWebKey.import_key(key_data, {'kty': 'RSA'})
+with open(jwt_key+'.pub', 'rb') as f:
+    key_data = f.read()
+signing_key_pub = JsonWebKey.import_key(key_data, {'kty': 'RSA'})
+
 
 def build_url(url, **kwargs):
     return '{}?{}'.format(url, urllib.parse.urlencode(kwargs))
 
 def issue_token(subject, audience, claims):
-    with open(jwt_key, 'rb') as f:
-        key_data = f.read()
-    key = JsonWebKey.import_key(key_data, {'kty': 'RSA'})
-
     claims['sub'] = subject
-    claims['iss'] = 'oauth2-server'
+    claims['iss'] = own_base_url
     claims['aud'] = audience
     claims['iat'] = datetime.datetime.utcnow()
     claims['exp'] = datetime.datetime(year=2030, month=1, day=1)
 
     header = {'alg': 'RS256'}
-    token = jwt.encode(header, claims, key).decode("ascii")
+    token = jwt.encode(header, claims, signing_key).decode("ascii")
     return token
 
 
@@ -111,8 +119,10 @@ def token():
     # TODO: Validate that code matches cliend_id
     # TODO: Validate uri and grant type matches code
 
-    access_token_claims = {'scope': request['scope']}
-    access_token = issue_token(user, 'api', access_token_claims)
+    own_url = req.base_url.removesuffix('/token')
+    access_token = issue_token(user,
+                               audience=[api_base_url, own_url+'/userinfo'],
+                               claims={'scope': request['scope']})
     response = {'access_token': access_token, 'token_type': 'Bearer'}
 
     if 'openid' in request['scope']:
@@ -127,16 +137,18 @@ def token():
 @app.route('/userinfo', methods=['GET'])
 def userinfo():
     req = flask.request
-    access_token = req.headers.get('Authorization')
+    access_token = req.headers.get('Authorization', None)
+    # TODO: if not access_token
 
     # TODO: Validate access-token
 
     log.info("GET-USERINFO: Access token: '{}'".format(access_token))
 
-    if not access_token.startswith('Bearer '):
-        return flask.render_template('error.html', text='Invalid access token')
+    access_token_parts = access_token.split()
+    if access_token_parts[0].lower() != 'bearer' or len(access_token_parts) != 2:
+        return flask.render_template('error.html', text='Invalid authorization')
 
-    access_token = access_token.removeprefix('Bearer ')
+    access_token = access_token_parts[1]
 
     # FIXME
     with open('jwt-key.pub', 'rb') as f:
@@ -145,6 +157,9 @@ def userinfo():
 
     access_token_json = jwt.decode(access_token, pub_key)
     scope = access_token_json['scope']
+
+    # TODO: Validate audience in access token covers /userinfo
+    log.info("GET-USERINFO: Access token audience: '{}'".format(access_token_json['aud']))
 
     log.info("GET-USERINFO: Scope '{}'".format(scope))
 
@@ -155,6 +170,11 @@ def userinfo():
 
     return claims
 
+@app.route('/.well-known/jwks.json', methods=['GET'])
+def jwks():
+    jwks = { 'keys': [ signing_key_pub.as_dict() ] }
+    return flask.Response(json.dumps(jwks), mimetype='application/json')
+
 
 if __name__ == '__main__':
-    app.run(host='0.0.0.0', port=5000)
+    app.run(host='0.0.0.0', port=app_port)
