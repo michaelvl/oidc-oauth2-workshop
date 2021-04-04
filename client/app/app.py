@@ -44,7 +44,7 @@ def token_get_jwk(token):
 
 @app.route('/', methods=['GET'])
 def index():
-    return flask.render_template('index.html')
+    return flask.render_template('index.html', client_id=client_id)
 
 @app.route('/gettoken', methods=['POST'])
 def gettoken():
