@@ -132,7 +132,7 @@ def read_api():
     response = requests.get(api_base_url+'/api', headers=headers)
 
     if response.status_code != 200:
-        return 'Failed with status {}'.format(response.status_code)
+        return 'Failed with code {}: {}'.format(response.status_code, response.text)
 
     response_json = response.json()
     return flask.render_template('read-api.html', access_token=access_token,
