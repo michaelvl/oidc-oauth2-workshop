@@ -29,7 +29,8 @@ def token_get_jwk(token):
 def api():
     req = flask.request
     access_token = req.headers.get('Authorization', None)
-    # TODO: if not access_token
+    if not access_token:
+        return 'Authentication required', 401
 
     # TODO: Validate access-token
 

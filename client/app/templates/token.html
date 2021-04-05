@@ -19,6 +19,9 @@
 .verbatim {
   white-space: pre-wrap;
 }
+.row {
+  display: inline-block;
+}
   </style>
   <body>
     <div class="header"><b>Client</b></div>
@@ -60,7 +63,14 @@
 
     <form action="/read-api" method="post">
       <input type="hidden" name="accesstoken" value="{{access_token}}">
-      <button type="submit">Read from API using access-token</button>
+      <div class="row">
+	<button type="submit">Read from API</button>
+        using
+	<select name="auth-token-usage">
+	  <option value="authentication-header">Access token in authentication header</option>
+	  <option value="none">No authentication</option>
+	</select>
+      </div>
     </form>
 
   </body>

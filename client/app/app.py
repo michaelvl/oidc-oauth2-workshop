@@ -118,10 +118,15 @@ def get_userinfo():
 def read_api():
     req = flask.request
     access_token = req.form.get('accesstoken')
-    log.info('Get UserInfo, access-token: {}'.format(access_token))
+    log.info('Read API, access-token: {}'.format(access_token))
 
     # FIXME bearer, type
-    headers = {'Authorization': 'Bearer '+access_token}
+    auth_token_usage = req.form.get('auth-token-usage')
+    log.info('Read API, token usage: {}'.format(auth_token_usage))
+    if auth_token_usage == 'authentication-header':
+        headers = {'Authorization': 'Bearer '+access_token}
+    else:
+        headers = {}
 
     log.info("Reading from API url: '{}'".format(api_base_url))
     response = requests.get(api_base_url+'/api', headers=headers)
