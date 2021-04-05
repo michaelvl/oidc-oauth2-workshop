@@ -38,7 +38,7 @@ def api():
 
     access_token_parts = access_token.split()
     if access_token_parts[0].lower() != 'bearer' or len(access_token_parts) != 2:
-        return flask.render_template('error.html', text='Invalid authorization')
+        return 'Invalid authorization', 401
 
     access_token = access_token.removeprefix('Bearer ')
 
