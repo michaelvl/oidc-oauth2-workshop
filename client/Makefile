@@ -18,3 +18,7 @@ run:
 .PHONY: dev
 dev:
 	docker run --net host --rm -v $(shell pwd)/app:/usr/src/app:ro -e FLASK_APP=app.py -e FLASK_ENV=development -p5001:5001 $(IMAGE):$(VERSION)
+
+.PHONY: aws-cognito
+aws-cognito:
+	docker run --net host --rm -v $(shell pwd)/app:/usr/src/app:ro -e FLASK_APP=app.py -e FLASK_ENV=development -e OAUTH2_URL -e CLIENT_ID -e CLIENT_SECRET -p5001:5001 $(IMAGE):$(VERSION)

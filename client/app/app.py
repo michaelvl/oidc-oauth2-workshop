@@ -15,22 +15,22 @@ app = flask.Flask('oauth2-client')
 logging.basicConfig(level=logging.DEBUG)
 log = logging.getLogger('oauth2-client')
 
-oauth2_url = os.getenv('OAUTH2_URL', 'http://127.0.0.1:5000/authorize')
-oauth2_token_url = os.getenv('OAUTH2_TOKEN_URL', 'http://127.0.0.1:5000/token')
-oauth2_userinfo_url = os.getenv('OAUTH2_USERINFO_URL', 'http://127.0.0.1:5000/userinfo')
-oidc_jwks_url = os.getenv('OIDC_JWKS_URL', 'http://127.0.0.1:5000/.well-known/jwks.json')
+oauth2_url = os.getenv('OAUTH2_URL', 'http://localhost:5000/authorize')
+oauth2_token_url = os.getenv('OAUTH2_TOKEN_URL', 'http://localhost:5000/token')
+oauth2_userinfo_url = os.getenv('OAUTH2_USERINFO_URL', 'http://localhost:5000/userinfo')
+oidc_jwks_url = os.getenv('OIDC_JWKS_URL', 'http://localhost:5000/.well-known/jwks.json')
 client_id = os.getenv('CLIENT_ID', 'client-123-id')
-client_password = os.getenv('CLIENT_PASSWORD', 'client-123-password')
+client_secret = os.getenv('CLIENT_SECRET', 'client-123-password')
 app_port = int(os.getenv('APP_PORT', '5001'))
-api_base_url = os.getenv('API_BASE_URL', 'http://127.0.0.1:5002')
+api_base_url = os.getenv('API_BASE_URL', 'http://localhost:5002')
 
-redirect_uri = 'http://127.0.0.1:5001/callback'
+redirect_uri = 'http://localhost:5001/callback'
 
 def build_url(url, **kwargs):
     return '{}?{}'.format(url, urllib.parse.urlencode(kwargs))
 
-def encode_client_creds(client_id, client_password):
-    return '{}:{}'.format(urllib.parse.quote_plus(client_id), urllib.parse.quote_plus(client_password))
+def encode_client_creds(client_id, client_secret):
+    return '{}:{}'.format(urllib.parse.quote_plus(client_id), urllib.parse.quote_plus(client_secret))
 
 def json_pretty_print(json_data):
     return json.dumps(json_data, indent=4, sort_keys=True)
@@ -44,7 +44,7 @@ def token_get_jwk(token):
 
 @app.route('/', methods=['GET'])
 def index():
-    return flask.render_template('index.html', client_id=client_id)
+    return flask.render_template('index.html', client_id=client_id, oauth2_url=oauth2_url)
 
 @app.route('/gettoken', methods=['POST'])
 def gettoken():
@@ -70,7 +70,7 @@ def callback():
     data = {'code': code,
             'grant_type': 'authorization_code',
             'redirection_uri': redirect_uri}
-    headers = {'Authorization': 'Basic '+encode_client_creds(client_id, client_password)}
+    headers = {'Authorization': 'Basic '+encode_client_creds(client_id, client_secret)}
 
     log.info("Getting token from url: '{}'".format(oauth2_token_url))
     response = requests.post(oauth2_token_url, data=data, headers=headers)
