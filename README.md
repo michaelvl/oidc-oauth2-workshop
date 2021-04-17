@@ -36,7 +36,9 @@ about the tokens it received:
 
 > ![Step 3](images/client-step3.png)
 
-The client supports reading the OIDC `userinfo` data from the IdP:
+The client supports reading the OIDC `userinfo` data from the IdP. The IdP will
+return additional information about the user if the access token includes the
+`profile` scope:
 
 > ![Step 4 userinfo](images/client-step4.png)
 
