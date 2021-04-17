@@ -5,6 +5,7 @@ import flask
 import requests
 import urllib
 import uuid
+import base64
 import json
 import logging
 
@@ -30,7 +31,8 @@ def build_url(url, **kwargs):
     return '{}?{}'.format(url, urllib.parse.urlencode(kwargs))
 
 def encode_client_creds(client_id, client_secret):
-    return '{}:{}'.format(urllib.parse.quote_plus(client_id), urllib.parse.quote_plus(client_secret))
+    creds = '{}:{}'.format(urllib.parse.quote_plus(client_id), urllib.parse.quote_plus(client_secret))
+    return base64.b64encode(creds.encode('ascii')).decode('ascii')
 
 def json_pretty_print(json_data):
     return json.dumps(json_data, indent=4, sort_keys=True)
@@ -69,14 +71,15 @@ def callback():
 
     data = {'code': code,
             'grant_type': 'authorization_code',
-            'redirection_uri': redirect_uri}
-    headers = {'Authorization': 'Basic '+encode_client_creds(client_id, client_secret)}
+            'redirect_uri': redirect_uri}
+    headers = {'Authorization': 'Basic '+encode_client_creds(client_id, client_secret),
+               'Content-type': 'application/x-www-form-urlencoded'}
 
     log.info("Getting token from url: '{}'".format(oauth2_token_url))
     response = requests.post(oauth2_token_url, data=data, headers=headers)
 
     if response.status_code != 200:
-        return 'Failed with status {}'.format(response.status_code)
+        return 'Failed with status {}: {}'.format(response.status_code, response.text)
 
     response_json = response.json()
     for token_type in ['id_token', 'access_token', 'refresh_token']:
