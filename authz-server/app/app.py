@@ -30,6 +30,7 @@ signing_key = JsonWebKey.import_key(key_data, {'kty': 'RSA'})
 with open(jwt_key+'.pub', 'rb') as f:
     key_data = f.read()
 signing_key_pub = JsonWebKey.import_key(key_data, {'kty': 'RSA'})
+signing_key_pub['kid'] = signing_key_pub.thumbprint()
 
 
 def build_url(url, **kwargs):
@@ -42,7 +43,7 @@ def issue_token(subject, audience, claims):
     claims['iat'] = datetime.datetime.utcnow()
     claims['exp'] = datetime.datetime(year=2030, month=1, day=1)
 
-    header = {'alg': 'RS256'}
+    header = {'alg': 'RS256', 'kid': signing_key_pub['kid'] }
     token = jwt.encode(header, claims, signing_key).decode("ascii")
     return token
 

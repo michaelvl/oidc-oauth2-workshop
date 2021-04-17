@@ -22,8 +22,12 @@ def token_get_jwk(token):
     response = requests.get(oidc_jwks_url)
     jwks = response.json()
     log.info("Got JWKS '{}'".format(jwks))
-    # TODO: Match 'kid' towards keys in key-set (we assume first key is a match)
-    return jwks['keys'][0]
+    hdr = jose_jwt.get_unverified_header(token)
+    log.info("JWT header '{}'".format(hdr))
+    for jwk in jwks['keys']:
+        if 'kid' in jwk.keys() and jwk['kid'] == hdr['kid']:
+            return jwk
+    return None
 
 @app.route('/api', methods=['GET'])
 def api():
@@ -34,13 +38,12 @@ def api():
 
     # TODO: Validate access-token
 
-    log.info("API: Access token: '{}'".format(access_token))
-
-    access_token_parts = access_token.split()
+    access_token_parts = access_token.split(' ')
     if access_token_parts[0].lower() != 'bearer' or len(access_token_parts) != 2:
         return 'Invalid authorization', 401
 
-    access_token = access_token.removeprefix('Bearer ')
+    access_token = access_token_parts[1]
+    log.info("API: Access token: '{}'".format(access_token))
 
     unverified_access_token_json = jose_jwt.get_unverified_claims(access_token)
     log.info('API: Unverified claims {}'.format(unverified_access_token_json))

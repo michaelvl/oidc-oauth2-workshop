@@ -8,8 +8,10 @@ import uuid
 import base64
 import json
 import logging
+import jose
 
 from authlib.jose import jwt, jwk, JsonWebKey
+from jose import jwt as jose_jwt
 
 app = flask.Flask('oauth2-client')
 
@@ -41,8 +43,12 @@ def token_get_jwk(token):
     response = requests.get(oidc_jwks_url)
     jwks = response.json()
     log.info("Got JWKS '{}'".format(jwks))
-    # TODO: Match 'kid' towards keys in key-set (we assume first key is a match)
-    return jwks['keys'][0]
+    hdr = jose_jwt.get_unverified_header(token)
+    log.info("JWT header '{}'".format(hdr))
+    for jwk in jwks['keys']:
+        if 'kid' in jwk.keys() and jwk['kid'] == hdr['kid']:
+            return jwk
+    return None
 
 @app.route('/', methods=['GET'])
 def index():

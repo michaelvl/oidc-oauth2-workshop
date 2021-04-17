@@ -17,4 +17,4 @@ run:
 
 .PHONY: dev
 dev:
-	docker run --net host --rm -v $(shell pwd)/app:/usr/src/app:ro -e FLASK_APP=app.py -e FLASK_ENV=development -p5002:5002 $(IMAGE):$(VERSION)
+	docker run --net host --rm -v $(shell pwd)/app:/usr/src/app:ro -e FLASK_APP=app.py -e FLASK_ENV=development -e OIDC_JWKS_URL -p5002:5002 $(IMAGE):$(VERSION)
