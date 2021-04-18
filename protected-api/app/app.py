@@ -65,7 +65,7 @@ def api():
         'access token scope': access_token_json['scope'],
     }
 
-    if 'api' in access_token_json['scope']:
+    if 'http://localhost:5002/api' in access_token_json['scope'].split(' '):
         api_response['info'] = 'the access token allow access to the api'
     else:
         api_response['info'] = 'the access token DO NOT allow access to the api'

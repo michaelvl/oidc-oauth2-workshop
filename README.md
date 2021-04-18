@@ -20,7 +20,7 @@ This is the initial login step. The `scope` input defines our desired scope of
 the OIDC/OAuth2 tokens we will obtain through the identity provider. Scopes are
 space separated strings and the client defaults to `openid profile`, which is
 the standard for OIDC. The protected resource in this workshop only allows
-access if the scope `api` is included.
+access if the scope `http://localhost:5002/api` is included.
 
 When you select `Login`, you are redirected to the Identity
 provider/Authorization server (IdP):
@@ -44,8 +44,8 @@ return additional information about the user if the access token includes the
 
 The client also supports reading information from the protected resource
 (OAuth2). The protected resource will respond differently depending on whether
-the token contains the scope `api` or not. The following example show usage
-without the `api` scope:
+the token contains the scope `http://localhost:5002/api` or not. The following
+example show usage without the `api` scope:
 
 > ![Step 4 API access](images/client-step4-api.png)
 
