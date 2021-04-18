@@ -13,7 +13,8 @@ from jose import jwt as jose_jwt
 app = flask.Flask('protected-api')
 
 app_port = int(os.getenv('APP_PORT', '5002'))
-oidc_jwks_url = os.getenv('OIDC_JWKS_URL', 'http://127.0.0.1:5000/.well-known/jwks.json')
+base_url='http://localhost:{}'.format(app_port)
+oidc_jwks_url = os.getenv('OIDC_JWKS_URL', 'http://localhost:5000/.well-known/jwks.json')
 
 logging.basicConfig(level=logging.DEBUG)
 log = logging.getLogger('protected-api')
@@ -58,19 +59,16 @@ def api():
     scope = access_token_json['scope']
     log.info("API: Scope '{}'".format(scope))
 
-    # TODO: Validate audience in access token covers /api
-    log.info("API: Access token audience: '{}'".format(access_token_json['aud']))
-
-    api_response = {
-        'access token scope': access_token_json['scope'],
-    }
-
-    if 'http://localhost:5002/api' in scope.split(' '):
-        api_response['info'] = 'the access token allow access to the api'
+    if base_url+'/api' in scope.split(' '):
+        api_response = {
+            'access token scope': access_token_json['scope'],
+            'info': 'the access token allow access to the api'
+        }
+        return flask.Response(json.dumps(api_response), mimetype='application/json')
     else:
-        api_response['info'] = 'the access token DO NOT allow access to the api'
-    
-    return flask.Response(json.dumps(api_response), mimetype='application/json')
+        # https://tools.ietf.org/html/rfc6750#section-3
+        headers = {'WWW-Authenticate': ['Bearer realm='+base_url, 'error=insufficient_scope', 'scope='+base_url+'/api']}
+        return flask.Response(headers=headers), 403
 
 
 if __name__ == '__main__':
