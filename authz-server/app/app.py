@@ -123,7 +123,10 @@ def token():
     own_url = req.base_url.removesuffix('/token')
     access_token = issue_token(user,
                                audience=[api_base_url, own_url+'/userinfo'],
-                               claims={'scope': request['scope']})
+                               claims={
+                                   'token_use': 'access',
+                                   'scope': request['scope']
+                               })
     response = {'access_token': access_token, 'token_type': 'Bearer'}
 
     if 'openid' in request['scope']:
