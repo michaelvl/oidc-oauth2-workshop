@@ -74,6 +74,8 @@ def callback():
     # TODO: Check state is valid for an outstanding request
 
     log.info("Got callback with code '{}'".format(code))
+    if not code:
+        log.error('Received no code: {}'.format(req))
 
     data = {'code': code,
             'grant_type': 'authorization_code',
@@ -102,7 +104,8 @@ def callback():
     return flask.render_template('token.html',
                                  id_token=response_json['id_token'],
                                  id_token_parsed=json_pretty_print(claims),
-                                 access_token=response_json['access_token'])
+                                 access_token=response_json['access_token'],
+                                 refresh_token=response_json['refresh_token'])
 
 @app.route('/getuserinfo', methods=['POST'])
 def get_userinfo():
