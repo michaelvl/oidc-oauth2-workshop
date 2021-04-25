@@ -36,12 +36,12 @@ signing_key_pub['kid'] = signing_key_pub.thumbprint()
 def build_url(url, **kwargs):
     return '{}?{}'.format(url, urllib.parse.urlencode(kwargs))
 
-def issue_token(subject, audience, claims):
+def issue_token(subject, audience, claims, expiry):
     claims['sub'] = subject
     claims['iss'] = own_base_url
     claims['aud'] = audience
     claims['iat'] = datetime.datetime.utcnow()
-    claims['exp'] = datetime.datetime(year=2030, month=1, day=1)
+    claims['exp'] = expiry
 
     header = {'alg': 'RS256', 'kid': signing_key_pub['kid'] }
     token = jwt.encode(header, claims, signing_key).decode("ascii")
@@ -121,20 +121,24 @@ def token():
     # TODO: Validate uri and grant type matches code
 
     own_url = req.base_url.removesuffix('/token')
-    access_token = issue_token(user,
-                               audience=[api_base_url, own_url+'/userinfo'],
+    access_token = issue_token(user, audience=[api_base_url, own_url+'/userinfo'],
                                claims={
                                    'token_use': 'access',
-                                   'scope': request['scope']
-                               })
-    response = {'access_token': access_token, 'token_type': 'Bearer'}
+                                   'scope': request['scope']},
+                               expiry=datetime.datetime.utcnow()+datetime.timedelta(minutes=5))
+    refresh_token = issue_token(user, audience=[api_base_url, own_url+'/userinfo'],
+                                claims={
+                                    'token_use': 'refresh',
+                                    'scope': request['scope']},
+                               expiry=datetime.datetime.utcnow()+datetime.timedelta(days=1))
+    response = {'access_token': access_token, 'refresh_token': refresh_token, 'token_type': 'Bearer'}
 
     if 'openid' in request['scope']:
         claims = dict()
         # See https://openid.net/specs/openid-connect-basic-1_0.html#StandardClaims for what claims to include in access token
         if 'profile' in request['scope']:
             claims['name'] = 'Name of user {}'.format(user)
-        response['id_token'] = issue_token(user, request['client_id'], claims)
+        response['id_token'] = issue_token(user, request['client_id'], claims, datetime.datetime.utcnow()+datetime.timedelta(minutes=60))
 
     return response
 
