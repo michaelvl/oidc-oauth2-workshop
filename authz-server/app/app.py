@@ -102,45 +102,69 @@ def token():
 
     # TODO: Validate client auth
 
-    code = req.form.get('code')
+    def issue_tokens(user, scope, client_id):
+        own_url = req.base_url.removesuffix('/token')
+        access_token = issue_token(user, audience=[api_base_url, own_url+'/userinfo'],
+                                   claims={
+                                       'token_use': 'access',
+                                       'scope': scope},
+                                   expiry=datetime.datetime.utcnow()+datetime.timedelta(minutes=5))
+        refresh_token = issue_token(user, audience=[api_base_url, own_url+'/userinfo'],
+                                    claims={
+                                        'token_use': 'refresh',
+                                        'scope': scope},
+                                   expiry=datetime.datetime.utcnow()+datetime.timedelta(days=1))
+        response = {'access_token': access_token, 'refresh_token': refresh_token, 'token_type': 'Bearer'}
+        if 'openid' in scope:
+            claims = dict()
+            # See https://openid.net/specs/openid-connect-basic-1_0.html#StandardClaims for what claims to include in access token
+            if 'profile' in scope:
+                claims['name'] = 'Name of user {}'.format(user)
+            response['id_token'] = issue_token(user, client_id, claims, datetime.datetime.utcnow()+datetime.timedelta(minutes=60))
+        return response
+
+
     grant_type = req.form.get('grant_type')
-    redir_uri = req.form.get('redirection_uri')
+    log.info("GET-TOKEN: Grant type: '{}'".format(grant_type))
 
-    if code not in codes:
-        return flask.render_template('error.html', text='Invalid code')
+    if grant_type == 'authorization_code':
+        code = req.form.get('code')
+        redir_uri = req.form.get('redirection_uri')
 
-    log.info("GET-TOKEN: Valid code: '{}'".format(code))
+        if code not in codes:
+            return flask.render_template('error.html', text='Invalid code')
 
-    code_meta = codes[code]
-    del codes[code]    # Code can only be used once
-    request = code_meta['request']
-    user = code_meta['user']
+        log.info("GET-TOKEN: Valid code: '{}'".format(code))
 
-    # TODO: Validate that code is not too old
-    # TODO: Validate that code matches cliend_id
-    # TODO: Validate uri and grant type matches code
+        code_meta = codes[code]
+        del codes[code]    # Code can only be used once
+        request = code_meta['request']
+        user = code_meta['user']
 
-    own_url = req.base_url.removesuffix('/token')
-    access_token = issue_token(user, audience=[api_base_url, own_url+'/userinfo'],
-                               claims={
-                                   'token_use': 'access',
-                                   'scope': request['scope']},
-                               expiry=datetime.datetime.utcnow()+datetime.timedelta(minutes=5))
-    refresh_token = issue_token(user, audience=[api_base_url, own_url+'/userinfo'],
-                                claims={
-                                    'token_use': 'refresh',
-                                    'scope': request['scope']},
-                               expiry=datetime.datetime.utcnow()+datetime.timedelta(days=1))
-    response = {'access_token': access_token, 'refresh_token': refresh_token, 'token_type': 'Bearer'}
+        # TODO: Validate that code is not too old
+        # TODO: Validate that code matches cliend_id
+        # TODO: Validate redir_uri and grant type matches code
 
-    if 'openid' in request['scope']:
-        claims = dict()
-        # See https://openid.net/specs/openid-connect-basic-1_0.html#StandardClaims for what claims to include in access token
-        if 'profile' in request['scope']:
-            claims['name'] = 'Name of user {}'.format(user)
-        response['id_token'] = issue_token(user, request['client_id'], claims, datetime.datetime.utcnow()+datetime.timedelta(minutes=60))
+        return issue_tokens(user, request['scope'], request['client_id'])
 
-    return response
+    elif grant_type == 'refresh_token':
+        refresh_token = req.form.get('refresh_token')
+        log.info('GET-TOKEN: Refresh token {}'.format(refresh_token))
+
+        # TODO: Validate refresh token
+
+        # FIXME
+        with open('jwt-key.pub', 'rb') as f:
+            key_data = f.read()
+        pub_key = JsonWebKey.import_key(key_data, {'kty': 'RSA'})
+
+        refresh_token_json = jwt.decode(refresh_token, pub_key)
+        
+        return issue_tokens(refresh_token_json['sub'], refresh_token_json['scope'], 'client ID FIXME')
+
+    else:
+        log.error("GET-TOKEN: Invalid grant type: '{}'".format(grant_type))
+        return 400
 
 @app.route('/userinfo', methods=['GET'])
 def userinfo():
