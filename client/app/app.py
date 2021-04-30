@@ -150,5 +150,43 @@ def read_api():
     return flask.render_template('read-api.html', access_token=access_token,
                                  api_data=json_pretty_print(response_json))
 
+@app.route('/refresh-token', methods=['POST'])
+def refresh_token():
+    req = flask.request
+    refresh_token = req.form.get('refreshtoken')
+    log.info('Refresh token, refresh-token: {}'.format(refresh_token))
+
+    data = {'refresh_token': refresh_token,
+            'grant_type': 'refresh_token'}
+    headers = {'Authorization': 'Basic '+encode_client_creds(client_id, client_secret),
+               'Content-type': 'application/x-www-form-urlencoded'}
+
+    log.info("Refresh token from url: '{}'".format(oauth2_token_url))
+    response = requests.post(oauth2_token_url, data=data, headers=headers)
+
+    if response.status_code != 200:
+        return 'Failed with status {}: {}'.format(response.status_code, response.text)
+
+    response_json = response.json()
+    for token_type in ['id_token', 'access_token', 'refresh_token']:
+        if token_type in response_json:
+            log.info("Got {} token '{}'".format(token_type, response_json[token_type]))
+
+    id_token = response_json['id_token']
+    access_token = response_json['access_token']
+    if 'refresh_token' in response_json:
+        refresh_token = response_json['refresh_token']
+
+    token_pub_jwk_json = token_get_jwk(id_token)
+    token_pub_jwk = JsonWebKey.import_key(token_pub_jwk_json)
+
+    claims = jwt.decode(id_token, token_pub_jwk)
+
+    return flask.render_template('token.html',
+                                 id_token=id_token,
+                                 id_token_parsed=json_pretty_print(claims),
+                                 access_token=access_token,
+                                 refresh_token=refresh_token)
+
 if __name__ == '__main__':
     app.run(host='0.0.0.0', port=app_port)

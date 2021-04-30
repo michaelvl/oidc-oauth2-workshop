@@ -77,5 +77,13 @@
     <p>This is the refresh-token we received:</p>
     <div class="framed"><p>{{refresh_token}}</p></div>
 
+    <form action="/refresh-token" method="post">
+      <input type="hidden" name="accesstoken" value="{{access_token}}">
+      <input type="hidden" name="refreshtoken" value="{{refresh_token}}">
+      <div class="row">
+	<button type="submit">Refresh token</button>
+      </div>
+    </form>
+
   </body>
 </html>
