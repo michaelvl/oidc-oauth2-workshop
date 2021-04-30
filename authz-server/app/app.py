@@ -109,7 +109,7 @@ def token():
                                        'token_use': 'access',
                                        'scope': scope},
                                    expiry=datetime.datetime.utcnow()+datetime.timedelta(minutes=5))
-        refresh_token = issue_token(user, audience=client_id,
+        refresh_token = issue_token(user, audience=own_url+'/token',
                                     claims={
                                         'client_id': client_id,
                                         'token_use': 'refresh',
