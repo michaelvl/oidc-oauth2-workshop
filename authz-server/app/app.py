@@ -109,8 +109,9 @@ def token():
                                        'token_use': 'access',
                                        'scope': scope},
                                    expiry=datetime.datetime.utcnow()+datetime.timedelta(minutes=5))
-        refresh_token = issue_token(user, audience=[api_base_url, own_url+'/userinfo'],
+        refresh_token = issue_token(user, audience=client_id,
                                     claims={
+                                        'client_id': client_id,
                                         'token_use': 'refresh',
                                         'scope': scope},
                                    expiry=datetime.datetime.utcnow()+datetime.timedelta(days=1))
@@ -160,7 +161,7 @@ def token():
 
         refresh_token_json = jwt.decode(refresh_token, pub_key)
         
-        return issue_tokens(refresh_token_json['sub'], refresh_token_json['scope'], 'client ID FIXME')
+        return issue_tokens(refresh_token_json['sub'], refresh_token_json['scope'], refresh_token_json['client_id'])
 
     else:
         log.error("GET-TOKEN: Invalid grant type: '{}'".format(grant_type))
