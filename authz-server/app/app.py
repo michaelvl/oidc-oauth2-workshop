@@ -68,6 +68,10 @@ def approve():
     user = req.form.get('username')
     password = req.form.get('password')
 
+    access_token_lifetime = int(req.form.get('access_token_lifetime'))
+    refresh_token_lifetime = int(req.form.get('refresh_token_lifetime'))
+    set_cookie = req.form.get('set_cookie')
+
     log.info("APPROVE: User: '{}', request id: {}".format(user, reqid))
 
     if not 'approve' in req.form:
@@ -87,7 +91,10 @@ def approve():
 
     code = str(uuid.uuid4())
 
-    codes[code] = {'request': request, 'user': user}
+    codes[code] = {'request': request, 'user': user,
+                   'access_token_lifetime': access_token_lifetime,
+                   'refresh_token_lifetime' : refresh_token_lifetime,
+                   'set_cookie': set_cookie}
 
     redir_url = build_url(request['redirect_uri'], code=code, state=request['state'])
     log.info("Redirecting to callback '{}'".format(redir_url))
@@ -102,19 +109,21 @@ def token():
 
     # TODO: Validate client auth
 
-    def issue_tokens(user, scope, client_id):
+    def issue_tokens(user, scope, client_id, access_token_lifetime, refresh_token_lifetime):
         own_url = req.base_url.removesuffix('/token')
         access_token = issue_token(user, audience=[api_base_url, own_url+'/userinfo'],
                                    claims={
                                        'token_use': 'access',
                                        'scope': scope},
-                                   expiry=datetime.datetime.utcnow()+datetime.timedelta(minutes=5))
+                                   expiry=datetime.datetime.utcnow()+datetime.timedelta(seconds=access_token_lifetime))
         refresh_token = issue_token(user, audience=own_url+'/token',
                                     claims={
                                         'client_id': client_id,
+                                        'access_token_lifetime': access_token_lifetime,
+                                        'refresh_token_lifetime' : refresh_token_lifetime,
                                         'token_use': 'refresh',
                                         'scope': scope},
-                                   expiry=datetime.datetime.utcnow()+datetime.timedelta(days=1))
+                                   expiry=datetime.datetime.utcnow()+datetime.timedelta(seconds=refresh_token_lifetime))
         response = {'access_token': access_token, 'refresh_token': refresh_token, 'token_type': 'Bearer'}
         if 'openid' in scope:
             claims = dict()
@@ -146,7 +155,8 @@ def token():
         # TODO: Validate that code matches cliend_id
         # TODO: Validate redir_uri and grant type matches code
 
-        return issue_tokens(user, request['scope'], request['client_id'])
+        return issue_tokens(user, request['scope'], request['client_id'],
+                            code_meta['access_token_lifetime'], code_meta['refresh_token_lifetime'])
 
     elif grant_type == 'refresh_token':
         refresh_token = req.form.get('refresh_token')
@@ -161,7 +171,8 @@ def token():
 
         refresh_token_json = jwt.decode(refresh_token, pub_key)
         
-        return issue_tokens(refresh_token_json['sub'], refresh_token_json['scope'], refresh_token_json['client_id'])
+        return issue_tokens(refresh_token_json['sub'], refresh_token_json['scope'], refresh_token_json['client_id'],
+                            refresh_token_json['access_token_lifetime'], refresh_token_json['refresh_token_lifetime'])
 
     else:
         log.error("GET-TOKEN: Invalid grant type: '{}'".format(grant_type))

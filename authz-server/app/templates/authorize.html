@@ -15,6 +15,11 @@
   padding-right: 10px;
   padding-bottom: 10px;
   padding-left: 10px;
+  word-wrap: break-word;
+  margin-bottom: 8px;
+}
+.dev-area {
+  background-color: #ddd;
 }
   </style>
   <body>
@@ -35,14 +40,29 @@
 
       <p>Next, we authorize that tokens with the specified scope can be issued to the client.</p>
 
-      <div class=framed>
+      <div class="framed">
 	<p>Approve this client?</p>
 	<b><p>{{client_id}}</p></b>
 	<p>For these scopes:</p>
 	<b><p>{{scope}}</p></b>
-
+	
 	<input type="submit" name="approve" value="Approve">
 	<input type="submit" name="deny" value="Deny">
+      </div>
+      <p>The settings below allows for experimentation with different advanced usecases. These settings are normally not under user control.</p>
+      <div class="framed dev-area">
+        <p>
+        <label for="scope"><b>Access token life-time (seconds)</b></label>
+        <input type="text" name="access_token_lifetime" value="3600" required>
+        </p>
+        <p>
+        <label for="scope"><b>Refresh token life-time (seconds)</b></label>
+        <input type="text" name="refresh_token_lifetime" value="36000" required>
+        </p>
+        <p>
+        <label for="scope"><b>Set cookie</b></label>
+        <input type="checkbox" name="set_cookie" value="set">
+        </p>
       </div>
     </form>
 
