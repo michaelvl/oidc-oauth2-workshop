@@ -12,8 +12,8 @@ from authlib.jose import jwt, jwk, JsonWebKey
 
 app = flask.Flask('oauth2-server')
 
-requests = dict()
-codes = dict()
+auth_context = dict()
+code_metadata = dict()
 
 jwt_key = os.getenv('JWT_KEY', 'jwt-key')
 app_port = int(os.getenv('APP_PORT', '5000'))
@@ -57,7 +57,8 @@ def authorize():
     redirect_uri = req.args.get('redirect_uri')
     state = req.args.get('state')
     reqid = str(uuid.uuid4())
-    requests[reqid] = {'scope': scope, 'client_id': client_id, 'redirect_uri': redirect_uri, 'state': state}
+    global auth_context
+    auth_context[reqid] = {'scope': scope, 'client_id': client_id, 'redirect_uri': redirect_uri, 'state': state}
     log.info("AUTHORIZE: Scope: '{}', client-id: '{}', state: {}, using request id: {}".format(scope, client_id, state, reqid))
     return flask.render_template('authorize.html', client_id=client_id, scope=scope, reqid=reqid)
 
@@ -80,23 +81,28 @@ def approve():
         return flask.render_template('error.html', text='Authentication error')
 
     # TODO: Check age of request
-    if reqid not in requests.keys():
+    global auth_context
+    if reqid not in auth_context.keys():
         return flask.render_template('error.html', text='Unknown request ID')
-    request = requests[reqid]
-    del requests[reqid]   # Request only valid once
+    auth_ctx = auth_context[reqid]
+    del auth_context[reqid]   # Auth request only valid once
 
     # TODO: validate scope is allowed for client
 
-    log.info("User: '{}' authorized scope: '{}' for client_id: '{}'".format(subject, request['scope'], request['client_id']))
+    log.info("User: '{}' authorized scope: '{}' for client_id: '{}'".format(subject, auth_ctx['scope'], auth_ctx['client_id']))
 
     code = str(uuid.uuid4())
 
-    codes[code] = {'request': request, 'subject': subject,
-                   'access_token_lifetime': access_token_lifetime,
-                   'refresh_token_lifetime' : refresh_token_lifetime,
-                   'set_cookie': set_cookie}
+    code_meta = {'subject': subject,
+                 'client_id': auth_ctx['client_id'],
+                 'scope': auth_ctx['scope'],
+                 'access_token_lifetime': access_token_lifetime,
+                 'refresh_token_lifetime' : refresh_token_lifetime,
+                 'set_cookie': set_cookie}
+    global code_metadata
+    code_metadata[code] = code_meta
 
-    redir_url = build_url(request['redirect_uri'], code=code, state=request['state'])
+    redir_url = build_url(auth_ctx['redirect_uri'], code=code, state=auth_ctx['state'])
     log.info("Redirecting to callback '{}'".format(redir_url))
     return flask.redirect(redir_url, code=303)
 
@@ -109,31 +115,6 @@ def token():
 
     # TODO: Validate client auth
 
-    def issue_tokens(subject, scope, client_id, access_token_lifetime, refresh_token_lifetime):
-        own_url = req.base_url.removesuffix('/token')
-        access_token = issue_token(subject, audience=[api_base_url, own_url+'/userinfo'],
-                                   claims={
-                                       'token_use': 'access',
-                                       'scope': scope},
-                                   expiry=datetime.datetime.utcnow()+datetime.timedelta(seconds=access_token_lifetime))
-        refresh_token = issue_token(subject, audience=own_url+'/token',
-                                    claims={
-                                        'client_id': client_id,
-                                        'access_token_lifetime': access_token_lifetime,
-                                        'refresh_token_lifetime' : refresh_token_lifetime,
-                                        'token_use': 'refresh',
-                                        'scope': scope},
-                                   expiry=datetime.datetime.utcnow()+datetime.timedelta(seconds=refresh_token_lifetime))
-        response = {'access_token': access_token, 'refresh_token': refresh_token, 'token_type': 'Bearer'}
-        if 'openid' in scope:
-            claims = dict()
-            # See https://openid.net/specs/openid-connect-basic-1_0.html#StandardClaims for what claims to include in access token
-            if 'profile' in scope:
-                claims['name'] = 'Name of user {}'.format(subject)
-            response['id_token'] = issue_token(subject, client_id, claims, datetime.datetime.utcnow()+datetime.timedelta(minutes=60))
-        return response
-
-
     grant_type = req.form.get('grant_type')
     log.info("GET-TOKEN: Grant type: '{}'".format(grant_type))
 
@@ -141,24 +122,24 @@ def token():
         code = req.form.get('code')
         redir_uri = req.form.get('redirection_uri')
 
-        if code not in codes:
+        if code not in code_metadata:
             return flask.render_template('error.html', text='Invalid code')
 
         log.info("GET-TOKEN: Valid code: '{}'".format(code))
 
-        code_meta = codes[code]
-        del codes[code]    # Code can only be used once
+        code_meta = code_metadata[code]
+        del code_metadata[code]    # Code can only be used once
 
         # TODO: Validate that code is not too old
         # TODO: Validate that code matches cliend_id
         # TODO: Validate redir_uri and grant type matches code
 
         # Context comes from code metadata
-        request = code_meta['request']
         subject = code_meta['subject']
-
-        return issue_tokens(subject, request['scope'], request['client_id'],
-                            code_meta['access_token_lifetime'], code_meta['refresh_token_lifetime'])
+        scope = code_meta['scope']
+        client_id = code_meta['client_id']
+        access_token_lifetime = code_meta['access_token_lifetime']
+        refresh_token_lifetime = code_meta['refresh_token_lifetime']
 
     elif grant_type == 'refresh_token':
         refresh_token = req.form.get('refresh_token')
@@ -172,14 +153,42 @@ def token():
         pub_key = JsonWebKey.import_key(key_data, {'kty': 'RSA'})
 
         refresh_token_json = jwt.decode(refresh_token, pub_key)
-        
-        return issue_tokens(refresh_token_json['sub'], refresh_token_json['scope'], refresh_token_json['client_id'],
-                            refresh_token_json['access_token_lifetime'], refresh_token_json['refresh_token_lifetime'])
+
+        # Context comes from refresh token
+        subject = refresh_token_json['sub']
+        scope = refresh_token_json['scope']
+        client_id = refresh_token_json['client_id']
+        access_token_lifetime = refresh_token_json['access_token_lifetime']
+        refresh_token_lifetime = refresh_token_json['refresh_token_lifetime']
 
     else:
         log.error("GET-TOKEN: Invalid grant type: '{}'".format(grant_type))
         return 400
 
+    # Issue tokens (shared for both 'authorization_code' and 'refresh_token' grants)
+    own_url = req.base_url.removesuffix('/token')
+    access_token = issue_token(subject, audience=[api_base_url, own_url+'/userinfo'],
+                               claims={
+                                   'token_use': 'access',
+                                   'scope': scope},
+                               expiry=datetime.datetime.utcnow()+datetime.timedelta(seconds=access_token_lifetime))
+    refresh_token = issue_token(subject, audience=own_url+'/token',
+                                claims={
+                                    'client_id': client_id,
+                                    'access_token_lifetime': access_token_lifetime,
+                                    'refresh_token_lifetime' : refresh_token_lifetime,
+                                    'token_use': 'refresh',
+                                    'scope': scope},
+                               expiry=datetime.datetime.utcnow()+datetime.timedelta(seconds=refresh_token_lifetime))
+    response = {'access_token': access_token, 'refresh_token': refresh_token, 'token_type': 'Bearer'}
+    if 'openid' in scope:
+        claims = dict()
+        # See https://openid.net/specs/openid-connect-basic-1_0.html#StandardClaims for what claims to include in access token
+        if 'profile' in scope:
+            claims['name'] = 'Name of user {}'.format(subject)
+        response['id_token'] = issue_token(subject, client_id, claims, datetime.datetime.utcnow()+datetime.timedelta(minutes=60))
+    return response
+    
 @app.route('/userinfo', methods=['GET'])
 def userinfo():
     req = flask.request
