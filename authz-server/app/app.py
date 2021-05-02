@@ -65,14 +65,14 @@ def authorize():
 def approve():
     req = flask.request
     reqid = req.form.get('reqid')
-    user = req.form.get('username')
+    subject = req.form.get('username')
     password = req.form.get('password')
 
     access_token_lifetime = int(req.form.get('access_token_lifetime'))
     refresh_token_lifetime = int(req.form.get('refresh_token_lifetime'))
     set_cookie = req.form.get('set_cookie')
 
-    log.info("APPROVE: User: '{}', request id: {}".format(user, reqid))
+    log.info("APPROVE: User: '{}', request id: {}".format(subject, reqid))
 
     if not 'approve' in req.form:
         return flask.render_template('error.html', text='Not approved')
@@ -87,11 +87,11 @@ def approve():
 
     # TODO: validate scope is allowed for client
 
-    log.info("User: '{}' authorized scope: '{}' for client_id: '{}'".format(user, request['scope'], request['client_id']))
+    log.info("User: '{}' authorized scope: '{}' for client_id: '{}'".format(subject, request['scope'], request['client_id']))
 
     code = str(uuid.uuid4())
 
-    codes[code] = {'request': request, 'user': user,
+    codes[code] = {'request': request, 'subject': subject,
                    'access_token_lifetime': access_token_lifetime,
                    'refresh_token_lifetime' : refresh_token_lifetime,
                    'set_cookie': set_cookie}
@@ -109,14 +109,14 @@ def token():
 
     # TODO: Validate client auth
 
-    def issue_tokens(user, scope, client_id, access_token_lifetime, refresh_token_lifetime):
+    def issue_tokens(subject, scope, client_id, access_token_lifetime, refresh_token_lifetime):
         own_url = req.base_url.removesuffix('/token')
-        access_token = issue_token(user, audience=[api_base_url, own_url+'/userinfo'],
+        access_token = issue_token(subject, audience=[api_base_url, own_url+'/userinfo'],
                                    claims={
                                        'token_use': 'access',
                                        'scope': scope},
                                    expiry=datetime.datetime.utcnow()+datetime.timedelta(seconds=access_token_lifetime))
-        refresh_token = issue_token(user, audience=own_url+'/token',
+        refresh_token = issue_token(subject, audience=own_url+'/token',
                                     claims={
                                         'client_id': client_id,
                                         'access_token_lifetime': access_token_lifetime,
@@ -129,8 +129,8 @@ def token():
             claims = dict()
             # See https://openid.net/specs/openid-connect-basic-1_0.html#StandardClaims for what claims to include in access token
             if 'profile' in scope:
-                claims['name'] = 'Name of user {}'.format(user)
-            response['id_token'] = issue_token(user, client_id, claims, datetime.datetime.utcnow()+datetime.timedelta(minutes=60))
+                claims['name'] = 'Name of user {}'.format(subject)
+            response['id_token'] = issue_token(subject, client_id, claims, datetime.datetime.utcnow()+datetime.timedelta(minutes=60))
         return response
 
 
@@ -148,14 +148,16 @@ def token():
 
         code_meta = codes[code]
         del codes[code]    # Code can only be used once
-        request = code_meta['request']
-        user = code_meta['user']
 
         # TODO: Validate that code is not too old
         # TODO: Validate that code matches cliend_id
         # TODO: Validate redir_uri and grant type matches code
 
-        return issue_tokens(user, request['scope'], request['client_id'],
+        # Context comes from code metadata
+        request = code_meta['request']
+        subject = code_meta['subject']
+
+        return issue_tokens(subject, request['scope'], request['client_id'],
                             code_meta['access_token_lifetime'], code_meta['refresh_token_lifetime'])
 
     elif grant_type == 'refresh_token':
