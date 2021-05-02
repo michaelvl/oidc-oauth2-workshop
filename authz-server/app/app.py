@@ -187,7 +187,8 @@ def token():
         if 'profile' in scope:
             claims['name'] = 'Name of user {}'.format(subject)
         response['id_token'] = issue_token(subject, client_id, claims, datetime.datetime.utcnow()+datetime.timedelta(minutes=60))
-    return response
+
+    return flask.Response(json.dumps(response), mimetype='application/json')
     
 @app.route('/userinfo', methods=['GET'])
 def userinfo():
