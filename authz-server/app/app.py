@@ -14,11 +14,13 @@ app = flask.Flask('oauth2-server')
 
 auth_context = dict()
 code_metadata = dict()
+sessions = dict()
 
 jwt_key = os.getenv('JWT_KEY', 'jwt-key')
 app_port = int(os.getenv('APP_PORT', '5000'))
 own_base_url = os.getenv('APP_BASE_URL', 'http://127.0.0.1:5000')
 api_base_url = os.getenv('API_BASE_URL', 'http://127.0.0.1:5002/api')
+SESSION_COOKIE_NAME='session'
 
 
 logging.basicConfig(level=logging.DEBUG)
@@ -57,6 +59,12 @@ def authorize():
     redirect_uri = req.args.get('redirect_uri')
     state = req.args.get('state')
     reqid = str(uuid.uuid4())
+    session_cookie = req.cookies.get(SESSION_COOKIE_NAME)
+
+    log.info('Session cookie: {}'.format(session_cookie))
+    if session_cookie in sessions:
+        log.info('This is a valid session!')
+
     global auth_context
     auth_context[reqid] = {'scope': scope, 'client_id': client_id, 'redirect_uri': redirect_uri, 'state': state}
     log.info("AUTHORIZE: Scope: '{}', client-id: '{}', state: {}, using request id: {}".format(scope, client_id, state, reqid))
@@ -97,14 +105,21 @@ def approve():
                  'client_id': auth_ctx['client_id'],
                  'scope': auth_ctx['scope'],
                  'access_token_lifetime': access_token_lifetime,
-                 'refresh_token_lifetime' : refresh_token_lifetime,
-                 'set_cookie': set_cookie}
+                 'refresh_token_lifetime' : refresh_token_lifetime}
     global code_metadata
     code_metadata[code] = code_meta
 
     redir_url = build_url(auth_ctx['redirect_uri'], code=code, state=auth_ctx['state'])
     log.info("Redirecting to callback '{}'".format(redir_url))
-    return flask.redirect(redir_url, code=303)
+    resp = flask.make_response(flask.redirect(redir_url, code=303))
+
+    if set_cookie:
+        session = str(uuid.uuid4())
+        log.info('Creation session {}'.format(session))
+        sessions[session] = code_meta
+        resp.set_cookie(SESSION_COOKIE_NAME, session, samesite='Lax', httponly=True)
+
+    return resp
 
 @app.route('/token', methods=['POST'])
 def token():
