@@ -64,6 +64,8 @@ def authorize():
     log.info('Session cookie: {}'.format(session_cookie))
     if session_cookie in sessions:
         log.info('This is a valid session!')
+    else:
+        log.info('This is not a valid session!')
 
     global auth_context
     auth_context[reqid] = {'scope': scope, 'client_id': client_id, 'redirect_uri': redirect_uri, 'state': state}
@@ -101,23 +103,24 @@ def approve():
 
     code = str(uuid.uuid4())
 
-    code_meta = {'subject': subject,
-                 'client_id': auth_ctx['client_id'],
-                 'scope': auth_ctx['scope'],
-                 'access_token_lifetime': access_token_lifetime,
-                 'refresh_token_lifetime' : refresh_token_lifetime}
+    session_meta = {'subject': subject,
+                    'client_id': auth_ctx['client_id'],
+                    'scope': auth_ctx['scope'],
+                    'access_token_lifetime': access_token_lifetime,
+                    'refresh_token_lifetime' : refresh_token_lifetime}
     global code_metadata
-    code_metadata[code] = code_meta
+    code_metadata[code] = session_meta
 
     redir_url = build_url(auth_ctx['redirect_uri'], code=code, state=auth_ctx['state'])
     log.info("Redirecting to callback '{}'".format(redir_url))
     resp = flask.make_response(flask.redirect(redir_url, code=303))
 
+    session_id = str(uuid.uuid4())
+    session_meta['session_id'] = session_id
     if set_cookie:
-        session = str(uuid.uuid4())
-        log.info('Creation session {}'.format(session))
-        sessions[session] = code_meta
-        resp.set_cookie(SESSION_COOKIE_NAME, session, samesite='Lax', httponly=True)
+        log.info('Created session {}'.format(session_id))
+        sessions[session_id] = session_meta
+        resp.set_cookie(SESSION_COOKIE_NAME, session_id, samesite='Lax', httponly=True)
 
     return resp
 
@@ -142,19 +145,20 @@ def token():
 
         log.info("GET-TOKEN: Valid code: '{}'".format(code))
 
-        code_meta = code_metadata[code]
+        session_meta = code_metadata[code]
         del code_metadata[code]    # Code can only be used once
 
         # TODO: Validate that code is not too old
         # TODO: Validate that code matches cliend_id
         # TODO: Validate redir_uri and grant type matches code
 
-        # Context comes from code metadata
-        subject = code_meta['subject']
-        scope = code_meta['scope']
-        client_id = code_meta['client_id']
-        access_token_lifetime = code_meta['access_token_lifetime']
-        refresh_token_lifetime = code_meta['refresh_token_lifetime']
+        # Context comes from session metadata
+        subject = session_meta['subject']
+        scope = session_meta['scope']
+        client_id = session_meta['client_id']
+        session_id = session_meta['session_id']
+        access_token_lifetime = session_meta['access_token_lifetime']
+        refresh_token_lifetime = session_meta['refresh_token_lifetime']
 
     elif grant_type == 'refresh_token':
         refresh_token = req.form.get('refresh_token')
@@ -170,6 +174,7 @@ def token():
         refresh_token_json = jwt.decode(refresh_token, pub_key)
 
         # Context comes from refresh token
+        session_id = refresh_token_json['session_id']
         subject = refresh_token_json['sub']
         scope = refresh_token_json['scope']
         client_id = refresh_token_json['client_id']
@@ -190,6 +195,7 @@ def token():
     refresh_token = issue_token(subject, audience=own_url+'/token',
                                 claims={
                                     'client_id': client_id,
+                                    'session_id': session_id,
                                     'access_token_lifetime': access_token_lifetime,
                                     'refresh_token_lifetime' : refresh_token_lifetime,
                                     'token_use': 'refresh',
