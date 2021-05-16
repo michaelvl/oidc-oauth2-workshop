@@ -18,6 +18,8 @@ app = flask.Flask('oauth2-client')
 logging.basicConfig(level=logging.DEBUG)
 log = logging.getLogger('oauth2-client')
 
+sessions = dict()
+
 oauth2_url = os.getenv('OAUTH2_URL', 'http://localhost:5000/authorize')
 oauth2_token_url = os.getenv('OAUTH2_TOKEN_URL', 'http://localhost:5000/token')
 oauth2_userinfo_url = os.getenv('OAUTH2_USERINFO_URL', 'http://localhost:5000/userinfo')
@@ -27,7 +29,10 @@ client_secret = os.getenv('CLIENT_SECRET', 'client-123-password')
 app_port = int(os.getenv('APP_PORT', '5001'))
 api_base_url = os.getenv('API_BASE_URL', 'http://localhost:5002')
 
+own_url = 'http://localhost:5001'
 redirect_uri = 'http://localhost:5001/callback'
+
+SESSION_COOKIE_NAME='client-session'
 
 def build_url(url, **kwargs):
     return '{}?{}'.format(url, urllib.parse.urlencode(kwargs))
@@ -52,7 +57,18 @@ def token_get_jwk(token):
 
 @app.route('/', methods=['GET'])
 def index():
-    return flask.render_template('index.html', client_id=client_id, oauth2_url=oauth2_url)
+    req = flask.request
+    session_cookie = req.cookies.get(SESSION_COOKIE_NAME)
+    if session_cookie in sessions:
+        session = sessions[session_cookie]
+        return flask.render_template('token.html',
+                                     id_token=session['id_token'],
+                                     id_token_parsed=json_pretty_print(session['id_token_claims']),
+                                     username=session['id_token_claims']['sub'],
+                                     access_token=session['access_token'],
+                                     refresh_token=session['refresh_token'])
+    else:
+        return flask.render_template('index.html', client_id=client_id, oauth2_url=oauth2_url)
 
 @app.route('/gettoken', methods=['POST'])
 def gettoken():
@@ -95,18 +111,25 @@ def callback():
             log.info("Got {} token '{}'".format(token_type, response_json[token_type]))
 
     id_token = response_json['id_token']
+    access_token=response_json['access_token']
+    refresh_token=response_json['refresh_token']
 
     token_pub_jwk_json = token_get_jwk(id_token)
     token_pub_jwk = JsonWebKey.import_key(token_pub_jwk_json)
 
     claims = jwt.decode(id_token, token_pub_jwk)
 
-    return flask.render_template('token.html',
-                                 id_token=response_json['id_token'],
-                                 id_token_parsed=json_pretty_print(claims),
-                                 username=claims['sub'],
-                                 access_token=response_json['access_token'],
-                                 refresh_token=response_json['refresh_token'])
+    session_id = str(uuid.uuid4())
+    session = {'id_token': id_token,
+               'id_token_claims': claims,
+               'access_token': access_token,
+               'refresh_token' : refresh_token}
+    sessions[session_id] = session
+    log.info('Created session {}'.format(session_id))
+
+    resp = flask.make_response(flask.redirect(own_url, code=303))
+    resp.set_cookie(SESSION_COOKIE_NAME, session_id, samesite='Lax', httponly=True)
+    return resp
 
 @app.route('/getuserinfo', methods=['POST'])
 def get_userinfo():
