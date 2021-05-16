@@ -7,6 +7,9 @@
   padding: 16px;
   font-size: x-large;
 }
+.right {
+  float: right;
+}
 .framed {
   background-color: #fff9e6;
   border: 2px solid grey;
@@ -24,9 +27,15 @@
 .row {
   display: inline-block;
 }
+.column {
+  display: block;
+}
   </style>
   <body>
-    <div class="header"><b>Client</b></div>
+    <div class="header">
+      <b>Client</b>
+      <div class="right column" >Logged in as: <b>{{username}}</b></div>
+    </div>
 
     <h2>Step 3: Token Received by Client</h2>
 

@@ -104,6 +104,7 @@ def callback():
     return flask.render_template('token.html',
                                  id_token=response_json['id_token'],
                                  id_token_parsed=json_pretty_print(claims),
+                                 username=claims['sub'],
                                  access_token=response_json['access_token'],
                                  refresh_token=response_json['refresh_token'])
 
