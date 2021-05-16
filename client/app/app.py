@@ -177,6 +177,7 @@ def read_api():
 @app.route('/refresh-token', methods=['POST'])
 def refresh_token():
     req = flask.request
+    session_cookie = req.cookies.get(SESSION_COOKIE_NAME)
     refresh_token = req.form.get('refreshtoken')
     log.info('Refresh token, refresh-token: {}'.format(refresh_token))
 
@@ -198,19 +199,21 @@ def refresh_token():
 
     id_token = response_json['id_token']
     access_token = response_json['access_token']
-    if 'refresh_token' in response_json:
-        refresh_token = response_json['refresh_token']
 
     token_pub_jwk_json = token_get_jwk(id_token)
     token_pub_jwk = JsonWebKey.import_key(token_pub_jwk_json)
 
     claims = jwt.decode(id_token, token_pub_jwk)
 
-    return flask.render_template('token.html',
-                                 id_token=id_token,
-                                 id_token_parsed=json_pretty_print(claims),
-                                 access_token=access_token,
-                                 refresh_token=refresh_token)
+    session = {'id_token': id_token,
+               'id_token_claims': claims,
+               'access_token': access_token}
+    if 'refresh_token' in response_json:
+        session['refresh_token'] = response_json['refresh_token']
+    sessions[session_cookie] = session
+
+    resp = flask.make_response(flask.redirect(own_url, code=303))
+    return resp
 
 if __name__ == '__main__':
     app.run(host='0.0.0.0', port=app_port)
