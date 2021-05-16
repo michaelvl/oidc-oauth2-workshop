@@ -63,7 +63,8 @@ def authorize():
 
     log.info('Session cookie: {}'.format(session_cookie))
     if session_cookie in sessions:
-        log.info('This is a valid session!')
+        log.info('This is a valid session, short-cutting login process...')
+        return issue_code_and_redirect(sessions[session_cookie])
     else:
         log.info('This is not a valid session!')
 
@@ -78,7 +79,6 @@ def approve():
     reqid = req.form.get('reqid')
     subject = req.form.get('username')
     password = req.form.get('password')
-
     access_token_lifetime = int(req.form.get('access_token_lifetime'))
     refresh_token_lifetime = int(req.form.get('refresh_token_lifetime'))
     set_cookie = req.form.get('set_cookie')
@@ -101,26 +101,32 @@ def approve():
 
     log.info("User: '{}' authorized scope: '{}' for client_id: '{}'".format(subject, auth_ctx['scope'], auth_ctx['client_id']))
 
-    code = str(uuid.uuid4())
-
+    session_id = str(uuid.uuid4())
     session_meta = {'subject': subject,
+                    'session_id': session_id,
                     'client_id': auth_ctx['client_id'],
                     'scope': auth_ctx['scope'],
+                    'redirect_uri': auth_ctx['redirect_uri'],
+                    'state': auth_ctx['state'],
                     'access_token_lifetime': access_token_lifetime,
-                    'refresh_token_lifetime' : refresh_token_lifetime}
+                    'refresh_token_lifetime' : refresh_token_lifetime,
+                    'set_cookie': set_cookie}
+    sessions[session_id] = session_meta
+    log.info('Created session {}'.format(session_id))
+
+    return issue_code_and_redirect(session_meta)
+
+def issue_code_and_redirect(session_meta):
+    code = str(uuid.uuid4())
     global code_metadata
     code_metadata[code] = session_meta
 
-    redir_url = build_url(auth_ctx['redirect_uri'], code=code, state=auth_ctx['state'])
+    redir_url = build_url(session_meta['redirect_uri'], code=code, state=session_meta['state'])
     log.info("Redirecting to callback '{}'".format(redir_url))
     resp = flask.make_response(flask.redirect(redir_url, code=303))
 
-    session_id = str(uuid.uuid4())
-    session_meta['session_id'] = session_id
-    if set_cookie:
-        log.info('Created session {}'.format(session_id))
-        sessions[session_id] = session_meta
-        resp.set_cookie(SESSION_COOKIE_NAME, session_id, samesite='Lax', httponly=True)
+    if session_meta['set_cookie']:
+        resp.set_cookie(SESSION_COOKIE_NAME, session_meta['session_id'], samesite='Lax', httponly=True)
 
     return resp
 
@@ -243,7 +249,7 @@ def userinfo():
     claims = dict()
     # See https://openid.net/specs/openid-connect-basic-1_0.html#StandardClaims for what claims to include in access token
     if 'profile' in scope:
-            claims['name'] = 'Name of user'
+        claims['name'] = 'Name of user is {}'.format(access_token_json['sub'].capitalize())
 
     return claims
 
