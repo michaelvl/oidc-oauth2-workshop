@@ -10,4 +10,4 @@ WORKDIR /usr/src/app/
 
 EXPOSE 5001
 
-ENTRYPOINT ["python", "/usr/src/app/app.py"]
+ENTRYPOINT ["python", "/usr/src/app/idp-auth-server.py"]

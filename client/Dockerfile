@@ -10,4 +10,4 @@ WORKDIR /usr/src/app/
 
 EXPOSE 5000
 
-ENTRYPOINT ["python", "/usr/src/app/app.py"]
+ENTRYPOINT ["python", "/usr/src/app/client.py"]

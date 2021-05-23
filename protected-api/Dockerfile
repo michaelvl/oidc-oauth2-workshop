@@ -10,4 +10,4 @@ WORKDIR /usr/src/app/
 
 EXPOSE 5002
 
-ENTRYPOINT ["python", "/usr/src/app/app.py"]
+ENTRYPOINT ["python", "/usr/src/app/protected-api.py"]
