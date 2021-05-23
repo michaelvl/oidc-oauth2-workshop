@@ -1,4 +1,7 @@
 #!/usr/bin/env python
+#
+# Copyright, Michael Vittrup Larsen
+# Origin: https://github.com/MichaelVL/oidc-oauth2-workshop
 
 import os
 import flask
