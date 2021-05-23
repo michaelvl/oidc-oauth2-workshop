@@ -215,5 +215,18 @@ def refresh_token():
     resp = flask.make_response(flask.redirect(own_url, code=303))
     return resp
 
+@app.route('/logout', methods=['POST'])
+def logout():
+    req = flask.request
+    id_token = req.form.get('idtoken')
+    log.info('Logout, id-token: {}'.format(id_token))
+
+    global sessions
+    sessions = dict()
+    # FIXME: Logout at IDP
+
+    resp = flask.make_response(flask.redirect(own_url, code=303))
+    return resp
+
 if __name__ == '__main__':
     app.run(host='0.0.0.0', port=app_port)

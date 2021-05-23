@@ -38,6 +38,11 @@
 
     <p>You are logged in as: <b>{{username}}</b></p>
 
+    <form action="/logout" method="post">
+      <input type="hidden" name="idtoken" value="{{id_token}}">
+      <button type="submit">Logout</button>
+    </form>
+
     <p>This is the ID-token we received:</p>
     <div class="framed"><p>{{id_token}}</p></div>
 
