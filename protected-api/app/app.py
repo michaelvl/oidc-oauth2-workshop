@@ -14,7 +14,7 @@ app = flask.Flask('protected-api')
 
 app_port = int(os.getenv('APP_PORT', '5002'))
 base_url='http://localhost:{}'.format(app_port)
-oidc_jwks_url = os.getenv('OIDC_JWKS_URL', 'http://localhost:5000/.well-known/jwks.json')
+oidc_jwks_url = os.getenv('OIDC_JWKS_URL', 'http://localhost:5001/.well-known/jwks.json')
 
 logging.basicConfig(level=logging.DEBUG)
 log = logging.getLogger('protected-api')

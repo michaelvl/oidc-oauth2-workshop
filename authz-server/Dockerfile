@@ -8,6 +8,6 @@ RUN pip install --no-cache-dir -r /usr/src/app/requirements.txt
 COPY app /usr/src/app/
 WORKDIR /usr/src/app/
 
-EXPOSE 5000
+EXPOSE 5001
 
 ENTRYPOINT ["python", "/usr/src/app/app.py"]

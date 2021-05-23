@@ -20,17 +20,17 @@ log = logging.getLogger('oauth2-client')
 
 sessions = dict()
 
-oauth2_url = os.getenv('OAUTH2_URL', 'http://localhost:5000/authorize')
-oauth2_token_url = os.getenv('OAUTH2_TOKEN_URL', 'http://localhost:5000/token')
-oauth2_userinfo_url = os.getenv('OAUTH2_USERINFO_URL', 'http://localhost:5000/userinfo')
-oidc_jwks_url = os.getenv('OIDC_JWKS_URL', 'http://localhost:5000/.well-known/jwks.json')
+oauth2_url = os.getenv('OAUTH2_URL', 'http://localhost:5001/authorize')
+oauth2_token_url = os.getenv('OAUTH2_TOKEN_URL', 'http://localhost:5001/token')
+oauth2_userinfo_url = os.getenv('OAUTH2_USERINFO_URL', 'http://localhost:5001/userinfo')
+oidc_jwks_url = os.getenv('OIDC_JWKS_URL', 'http://localhost:5001/.well-known/jwks.json')
 client_id = os.getenv('CLIENT_ID', 'client-123-id')
 client_secret = os.getenv('CLIENT_SECRET', 'client-123-password')
-app_port = int(os.getenv('APP_PORT', '5001'))
+app_port = int(os.getenv('APP_PORT', '5000'))
 api_base_url = os.getenv('API_BASE_URL', 'http://localhost:5002')
 
-own_url = 'http://localhost:5001'
-redirect_uri = 'http://localhost:5001/callback'
+own_url = 'http://localhost:5000'
+redirect_uri = 'http://localhost:5000/callback'
 
 SESSION_COOKIE_NAME='client-session'
 

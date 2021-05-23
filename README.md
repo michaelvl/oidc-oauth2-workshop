@@ -11,7 +11,7 @@ that require real security.
 See below for how to start the client, identity provider and protected
 resource. This section presents an usage example.
 
-The client is available at `http://localhost:5001`. Point your browser at this
+The client is available at `http://localhost:5000`. Point your browser at this
 endpoint and you should see the following:
 
 > ![Step 1](images/client-step1.png)
@@ -58,10 +58,10 @@ enabled with the following environment variables for the client. These can be
 changed to refer to an external identity provider.
 
 ```
-export OAUTH2_URL=http://localhost:5000/authorize
-export OAUTH2_TOKEN_URL=http://localhost:5000/token
-export OAUTH2_USERINFO_URL=http://localhost:5000/userinfo
-export OIDC_JWKS_URL=http://localhost:5000/.well-known/jwks.json
+export OAUTH2_URL=http://localhost:5001/authorize
+export OAUTH2_TOKEN_URL=http://localhost:5001/token
+export OAUTH2_USERINFO_URL=http://localhost:5001/userinfo
+export OIDC_JWKS_URL=http://localhost:5001/.well-known/jwks.json
 export CLIENT_ID=client-123-id
 export CLIENT_SECRET=client-123-password
 ```

@@ -13,8 +13,8 @@ build:
 
 .PHONY: run
 run:
-	docker run --rm -p5000:5000 $(IMAGE):$(VERSION)
+	docker run --rm -p5001:5001 $(IMAGE):$(VERSION)
 
 .PHONY: dev
 dev:
-	docker run --rm -v $(shell pwd)/app:/usr/src/app:ro -e FLASK_APP=app.py -e FLASK_ENV=development -p5000:5000 $(IMAGE):$(VERSION)
+	docker run --rm -v $(shell pwd)/app:/usr/src/app:ro -e FLASK_APP=app.py -e FLASK_ENV=development -p5001:5001 $(IMAGE):$(VERSION)

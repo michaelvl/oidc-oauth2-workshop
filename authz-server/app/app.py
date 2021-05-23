@@ -17,8 +17,8 @@ code_metadata = dict()
 sessions = dict()
 
 jwt_key = os.getenv('JWT_KEY', 'jwt-key')
-app_port = int(os.getenv('APP_PORT', '5000'))
-own_base_url = os.getenv('APP_BASE_URL', 'http://127.0.0.1:5000')
+app_port = int(os.getenv('APP_PORT', '5001'))
+own_base_url = os.getenv('APP_BASE_URL', 'http://127.0.0.1:5001')
 api_base_url = os.getenv('API_BASE_URL', 'http://127.0.0.1:5002/api')
 SESSION_COOKIE_NAME='session'
 
