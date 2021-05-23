@@ -51,6 +51,27 @@ example show usage without the `api` scope:
 
 ## Running the Components
 
+The following commands will run the three components, client,
+identity-provider/auth server and protected API as separate containers.
+
+Use the following command to run the client:
+
+```console
+(cd client/ && make build dev)
+```
+
+Use the following command to run the identity provider/auth-server:
+
+```console
+(cd idp-auth-server/ && make build dev)
+```
+
+Use the following command to run the protected API:
+
+```console
+(cd protected-api/ && make build dev)
+```
+
 ## Using Alternative Identity Providers
 
 Running the components with the local identity provider/authorization server is
