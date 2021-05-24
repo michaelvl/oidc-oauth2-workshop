@@ -36,6 +36,12 @@
 	<tr><td>scope:</td><td> {{ sessions[session].scope }} </td></tr>
 	<tr><td>client_id:</td><td> {{ sessions[session].client_id }} </td></tr>
       </table>
+      <p>
+      <form action="/logout" method="post">
+	<input type="hidden" name="sessionid" value="{{session}}">
+	<button type="submit">Logout</button>
+      </form>
+      </p>
     </div>
     {% endfor %}
     {% else %}

@@ -57,6 +57,18 @@ def issue_token(subject, audience, claims, expiry):
 def index():
     return flask.render_template('index.html', sessions=sessions)
 
+@app.route('/logout', methods=['POST'])
+def logout():
+    req = flask.request
+    session_id = req.form.get('sessionid')
+    log.info('Logout, session: {}'.format(session_id))
+
+    global sessions
+    del sessions[session_id]
+
+    resp = flask.make_response(flask.redirect(own_base_url, code=303))
+    return resp
+
 @app.route('/authorize', methods=['GET'])
 def authorize():
     # TODO: Validate client-id and redirection URL
