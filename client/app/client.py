@@ -226,6 +226,7 @@ def logout():
 
     global sessions
     sessions = dict()
+    # FIXME: Only logout subject
     # FIXME: Logout at IDP
 
     resp = flask.make_response(flask.redirect(own_url, code=303))
