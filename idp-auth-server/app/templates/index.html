@@ -29,9 +29,14 @@
 
     {% if sessions %}
     {% for session in sessions %}
-    <p> {{ session }} </p>
-    <p> subject: {{ sessions[session].subject }} </p>
-    <p> scope: {{ sessions[session].scope }} </p>
+    <div class="framed">
+      <p><b> {{ session }} </b></p>
+      <table>
+	<tr><td>subject:</td><td> {{ sessions[session].subject }} </td></tr>
+	<tr><td>scope:</td><td> {{ sessions[session].scope }} </td></tr>
+	<tr><td>client_id:</td><td> {{ sessions[session].client_id }} </td></tr>
+      </table>
+    </div>
     {% endfor %}
     {% else %}
     No active sessions.
