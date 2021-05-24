@@ -53,6 +53,10 @@ def issue_token(subject, audience, claims, expiry):
     return token
 
 
+@app.route('/', methods=['GET'])
+def index():
+    return flask.render_template('index.html', sessions=sessions)
+
 @app.route('/authorize', methods=['GET'])
 def authorize():
     # TODO: Validate client-id and redirection URL
