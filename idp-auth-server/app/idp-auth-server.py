@@ -277,6 +277,16 @@ def jwks():
     jwks = { 'keys': [ signing_key_pub.as_dict() ] }
     return flask.Response(json.dumps(jwks), mimetype='application/json')
 
+@app.route('/.well-known/openid-configuration', methods=['GET'])
+def openid_configuration():
+    config = { 'issuer': own_base_url,
+               'authorization_endpoint': own_base_url+'/authorize',
+               'token_endpoint': own_base_url+'/token',
+               'userinfo_endpoint': own_base_url+'/userinfo',
+               'jwks_uri': own_base_url+'/.well-known/jwks.json',
+               'end_session_endpoint': own_base_url+'/logout'}
+    return flask.Response(json.dumps(config), mimetype='application/json')
+
 
 if __name__ == '__main__':
     app.run(host='0.0.0.0', port=app_port)
