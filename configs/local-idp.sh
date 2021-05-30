@@ -1,3 +1,5 @@
+#! /bin/bash
+
 export OAUTH2_URL=http://localhost:5001/authorize
 export OAUTH2_TOKEN_URL=http://localhost:5001/token
 export OAUTH2_USERINFO_URL=http://localhost:5001/userinfo
