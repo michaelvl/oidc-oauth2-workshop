@@ -49,6 +49,10 @@ example show usage without the `api` scope:
 
 > ![Step 4 API access](images/client-step4-api.png)
 
+The IdP also provides an overview of active sessions at `http://localhost:5001/`
+
+> ![IdP Active Sessions](images/idp-sessions.png)
+
 ## Running the Components
 
 The following commands will run the three components, client,
