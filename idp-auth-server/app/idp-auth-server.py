@@ -38,6 +38,12 @@ signing_key_pub = JsonWebKey.import_key(key_data, {'kty': 'RSA'})
 signing_key_pub['kid'] = signing_key_pub.thumbprint()
 
 
+def get_session_by_subject(sub):
+    for session_id in sessions.keys():
+        if sessions[session_id]['subject'] == sub:
+            return session_id
+    return None
+
 def build_url(url, **kwargs):
     return '{}?{}'.format(url, urllib.parse.urlencode(kwargs))
 
@@ -69,27 +75,45 @@ def logout():
     resp = flask.make_response(flask.redirect(own_base_url, code=303))
     return resp
 
-@app.route('/authorize', methods=['GET'])
+@app.route('/authorize', methods=['GET', 'POST'])
 def authorize():
     # TODO: Validate client-id and redirection URL
     req = flask.request
-    client_id = req.args.get('client_id')
-    scope = req.args.get('scope')
-    redirect_uri = req.args.get('redirect_uri')
-    state = req.args.get('state')
+    client_id = req.values.get('client_id')
+    scope = req.values.get('scope')
+    redirect_uri = req.values.get('redirect_uri')
+    state = req.values.get('state')
+    prompt = req.values.get('prompt')
+
     reqid = str(uuid.uuid4())
     session_cookie = req.cookies.get(SESSION_COOKIE_NAME)
 
     log.info('Session cookie: {}'.format(session_cookie))
     if session_cookie in sessions:
-        log.info('This is a valid session, short-cutting login process...')
-        return issue_code_and_redirect(sessions[session_cookie])
+        log.info('This is an existing session identified by the session cookie, short-cutting login process...')
+        return issue_code_and_redirect(sessions[session_cookie], state)
     else:
-        log.info('This is not a valid session!')
+        log.info('No session cookie')
+        if prompt == 'none':
+            id_token_hint = req.form.get('id_token_hint')
+            id_token_claims = jwt.decode(id_token_hint, signing_key_pub)
+            log.info('ID token hint: {}'.format(id_token_claims))
+            existing_session_id = get_session_by_subject(id_token_claims['sub'])
+            if existing_session_id:
+                log.info('Found existing session {}'.format(existing_session_id))
+                # FIXME
+                return issue_code_and_redirect(sessions[existing_session_id], state)
+            else:
+                # FIXME
+                log.info('No existing session found')
+                data = {'error': 'login_required'}
+                headers = {'Content-type': 'application/x-www-form-urlencoded'}
+                response = flask.make_response(data, 403, headers)
+                return response
 
     global auth_context
     auth_context[reqid] = {'scope': scope, 'client_id': client_id, 'redirect_uri': redirect_uri, 'state': state}
-    log.info("AUTHORIZE: Scope: '{}', client-id: '{}', state: {}, using request id: {}".format(scope, client_id, state, reqid))
+    log.info("AUTHORIZE: Requesting login. Scope: '{}', client-id: '{}', state: {}, using request id: {}".format(scope, client_id, state, reqid))
     return flask.render_template('authorize.html', client_id=client_id, scope=scope, reqid=reqid)
 
 @app.route('/approve', methods=['POST'])
@@ -121,31 +145,31 @@ def approve():
     log.info("User: '{}' authorized scope: '{}' for client_id: '{}'".format(subject, auth_ctx['scope'], auth_ctx['client_id']))
 
     session_id = str(uuid.uuid4())
-    session_meta = {'subject': subject,
-                    'session_id': session_id,
-                    'client_id': auth_ctx['client_id'],
-                    'scope': auth_ctx['scope'],
-                    'redirect_uri': auth_ctx['redirect_uri'],
-                    'state': auth_ctx['state'],
-                    'access_token_lifetime': access_token_lifetime,
-                    'refresh_token_lifetime' : refresh_token_lifetime,
-                    'set_cookie': set_cookie}
-    sessions[session_id] = session_meta
+    session = {'subject': subject,
+               'session_id': session_id,
+               'client_id': auth_ctx['client_id'],
+               'scope': auth_ctx['scope'],
+               'redirect_uri': auth_ctx['redirect_uri'],
+               #'state': auth_ctx['state'],
+               'access_token_lifetime': access_token_lifetime,
+               'refresh_token_lifetime' : refresh_token_lifetime,
+               'set_cookie': set_cookie}
+    sessions[session_id] = session
     log.info('Created session {}'.format(session_id))
 
-    return issue_code_and_redirect(session_meta)
+    return issue_code_and_redirect(session, auth_ctx['state'])
 
-def issue_code_and_redirect(session_meta):
+def issue_code_and_redirect(session, state):
     code = str(uuid.uuid4())
     global code_metadata
-    code_metadata[code] = session_meta
+    code_metadata[code] = session
 
-    redir_url = build_url(session_meta['redirect_uri'], code=code, state=session_meta['state'])
+    redir_url = build_url(session['redirect_uri'], code=code, state=state)
     log.info("Redirecting to callback '{}'".format(redir_url))
     resp = flask.make_response(flask.redirect(redir_url, code=303))
 
-    if session_meta['set_cookie']:
-        resp.set_cookie(SESSION_COOKIE_NAME, session_meta['session_id'], samesite='Lax', httponly=True)
+    if session['set_cookie']:
+        resp.set_cookie(SESSION_COOKIE_NAME, session['session_id'], samesite='Lax', httponly=True)
 
     return resp
 
@@ -170,7 +194,7 @@ def token():
 
         log.info("GET-TOKEN: Valid code: '{}'".format(code))
 
-        session_meta = code_metadata[code]
+        session = code_metadata[code]
         del code_metadata[code]    # Code can only be used once
 
         # TODO: Validate that code is not too old
@@ -178,12 +202,12 @@ def token():
         # TODO: Validate redir_uri and grant type matches code
 
         # Context comes from session metadata
-        subject = session_meta['subject']
-        scope = session_meta['scope']
-        client_id = session_meta['client_id']
-        session_id = session_meta['session_id']
-        access_token_lifetime = session_meta['access_token_lifetime']
-        refresh_token_lifetime = session_meta['refresh_token_lifetime']
+        subject = session['subject']
+        scope = session['scope']
+        client_id = session['client_id']
+        session_id = session['session_id']
+        access_token_lifetime = session['access_token_lifetime']
+        refresh_token_lifetime = session['refresh_token_lifetime']
 
     elif grant_type == 'refresh_token':
         refresh_token = req.form.get('refresh_token')

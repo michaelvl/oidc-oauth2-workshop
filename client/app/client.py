@@ -21,11 +21,13 @@ app = flask.Flask('oauth2-client')
 logging.basicConfig(level=logging.DEBUG)
 log = logging.getLogger('oauth2-client')
 
+outstanding_requests = dict()
 sessions = dict()
 
 oauth2_url = os.getenv('OAUTH2_URL', 'http://localhost:5001/authorize')
 oauth2_token_url = os.getenv('OAUTH2_TOKEN_URL', 'http://localhost:5001/token')
 oauth2_userinfo_url = os.getenv('OAUTH2_USERINFO_URL', 'http://localhost:5001/userinfo')
+oidc_end_session_url = os.getenv('OIDC_END_SESSION_URL', 'http://localhost:5001/logout')
 oidc_jwks_url = os.getenv('OIDC_JWKS_URL', 'http://localhost:5001/.well-known/jwks.json')
 client_id = os.getenv('CLIENT_ID', 'client-123-id')
 client_secret = os.getenv('CLIENT_SECRET', 'client-123-password')
@@ -73,13 +75,18 @@ def index():
     else:
         return flask.render_template('index.html', client_id=client_id, oauth2_url=oauth2_url)
 
-@app.route('/gettoken', methods=['POST'])
-def gettoken():
+@app.route('/login', methods=['POST'])
+def login():
     req = flask.request
     scope = req.form.get('scope')
     response_type = 'code'
     state = str(uuid.uuid4())
     redir_url = build_url(oauth2_url, response_type=response_type, client_id=client_id, scope=scope, redirect_uri=redirect_uri, state=state)
+    session_id = str(uuid.uuid4())
+    session = {'scope': scope}
+    sessions[session_id] = session
+    log.info('Created session {}'.format(session_id))
+    outstanding_requests[state] = {'session_id': session_id}
     log.info("Redirecting get-token to '{}'".format(redir_url))
     return flask.redirect(redir_url, code=303)
 
@@ -90,9 +97,16 @@ def callback():
     code = req.args.get('code')
     state = req.args.get('state')
 
-    # TODO: Check state is valid for an outstanding request
+    # Check state is valid for an outstanding request
+    if state not in outstanding_requests:
+        log.error('State not valid: {}'.format(state))
+    req_out = outstanding_requests[state]
+    del outstanding_requests[state]
+    log.info('Found outstanding request: {} for state {}'.format(req_out, state))
 
-    log.info("Got callback with code '{}'".format(code))
+    # TODO: Check callback against outstanding requests (e.g. against Cross-Site Request Forgery)
+
+    log.info("Got callback with code {}, state {}".format(code, state))
     if not code:
         log.error('Received no code: {}'.format(req))
 
@@ -122,13 +136,15 @@ def callback():
 
     claims = jwt.decode(id_token, token_pub_jwk)
 
-    session_id = str(uuid.uuid4())
+    session_id = req_out['session_id']
+    session = sessions[session_id]
+    scope = session['scope']
     session = {'id_token': id_token,
                'id_token_claims': claims,
                'access_token': access_token,
-               'refresh_token' : refresh_token}
+               'refresh_token' : refresh_token,
+               'scope': scope}
     sessions[session_id] = session
-    log.info('Created session {}'.format(session_id))
 
     resp = flask.make_response(flask.redirect(own_url, code=303))
     resp.set_cookie(SESSION_COOKIE_NAME, session_id, samesite='Lax', httponly=True)
@@ -227,7 +243,39 @@ def logout():
     global sessions
     sessions = dict()
     # FIXME: Only logout subject
-    # FIXME: Logout at IDP
+    # FIXME: Logout at IDP using oidc_end_session_url
+
+    resp = flask.make_response(flask.redirect(own_url, code=303))
+    return resp
+
+@app.route('/checklogin', methods=['POST'])
+def check_login():
+    req = flask.request
+    session_cookie = req.cookies.get(SESSION_COOKIE_NAME)
+    session_id = session_cookie
+    if session_id in sessions:
+        session = sessions[session_id]
+
+    log.info('Check login, session id {}: {}'.format(session_id, session))
+
+
+    state = str(uuid.uuid4())
+    data = {'response_type': 'code',
+            'scope': session['scope'],
+            'redirect_uri': redirect_uri,
+            'client_id': client_id,
+            'state': state,
+            'id_token_hint': session['id_token'],
+            'prompt': 'none'}
+    headers = {'Authorization': 'Basic '+encode_client_creds(client_id, client_secret),
+               'Content-type': 'application/x-www-form-urlencoded'}
+
+    outstanding_requests[state] = {'session_id': session_id}
+
+    log.info("Check login using url: '{}', state {}".format(oauth2_url, state))
+    response = requests.post(oauth2_url, data=data, headers=headers)
+
+    log.info('xx response: {}'.format(response))
 
     resp = flask.make_response(flask.redirect(own_url, code=303))
     return resp
