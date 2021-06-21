@@ -274,10 +274,14 @@ def check_login():
 
     log.info("Check login using url: '{}', state {}".format(oauth2_url, state))
     response = requests.post(oauth2_url, data=data, headers=headers)
-
-    log.info('xx response: {}'.format(response))
+    log.info('Got status code: {}'.format(response.status_code))
 
     resp = flask.make_response(flask.redirect(own_url, code=303))
+    if response.status_code != 200:
+        log.info('Clear session and cookine')
+        resp.set_cookie(SESSION_COOKIE_NAME, '', samesite='Lax', httponly=True, expires=0)
+        del sessions[session_id]
+
     return resp
 
 if __name__ == '__main__':
