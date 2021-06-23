@@ -18,8 +18,12 @@ from jose import jwt as jose_jwt
 
 app = flask.Flask('oauth2-client')
 
-logging.basicConfig(level=logging.DEBUG)
+logging.basicConfig()
 log = logging.getLogger('oauth2-client')
+log.setLevel(logging.DEBUG)
+requests_log = logging.getLogger("urllib3")
+requests_log.setLevel(logging.DEBUG)
+requests_log.propagate = True
 
 outstanding_requests = dict()
 sessions = dict()
@@ -60,6 +64,13 @@ def token_get_jwk(token):
             return jwk
     return None
 
+def log_response(prefix, response):
+    for k,v in response.headers.items():
+        log.debug('{} # {}: {}'.format(prefix, k, v))
+    log.debug(prefix+' #')
+    for ln in response.text.split('\n'):
+        log.debug('{} # {}'.format(prefix, ln))
+
 @app.route('/', methods=['GET'])
 def index():
     req = flask.request
@@ -87,7 +98,7 @@ def login():
     sessions[session_id] = session
     log.info('Created session {}'.format(session_id))
     outstanding_requests[state] = {'session_id': session_id}
-    log.info("Redirecting get-token to '{}'".format(redir_url))
+    log.info("Redirecting LOGIN to '{}'".format(redir_url))
     return flask.redirect(redir_url, code=303)
 
 @app.route('/callback', methods=['GET'])
@@ -118,6 +129,7 @@ def callback():
 
     log.info("Getting token from url: '{}'".format(oauth2_token_url))
     response = requests.post(oauth2_token_url, data=data, headers=headers)
+    log_response('CALLBACK', response)
 
     if response.status_code != 200:
         return 'Failed with status {}: {}'.format(response.status_code, response.text)
@@ -161,6 +173,7 @@ def get_userinfo():
 
     log.info("Getting userinfo from url: '{}'".format(oauth2_userinfo_url))
     response = requests.get(oauth2_userinfo_url, headers=headers)
+    log_response('GET-USERINFO', response)
 
     if response.status_code != 200:
         return 'Failed with status {}'.format(response.status_code)
@@ -185,6 +198,7 @@ def read_api():
 
     log.info("Reading from API url: '{}'".format(api_base_url))
     response = requests.get(api_base_url+'/api', headers=headers)
+    log_response('READ-API', response)
 
     if response.status_code != 200:
         return 'Failed with code {}, headers: {}'.format(response.status_code, response.headers)
@@ -207,6 +221,7 @@ def refresh_token():
 
     log.info("Refresh token from url: '{}'".format(oauth2_token_url))
     response = requests.post(oauth2_token_url, data=data, headers=headers)
+    log_response('REFRESH-TOKEN', response)
 
     if response.status_code != 200:
         return 'Failed with status {}: {}'.format(response.status_code, response.text)
@@ -275,6 +290,7 @@ def check_login():
     log.info("Check login using url: '{}', state {}".format(oauth2_url, state))
     response = requests.post(oauth2_url, data=data, headers=headers)
     log.info('Got status code: {}'.format(response.status_code))
+    log_response('CHECK-LOGIN', response)
 
     resp = flask.make_response(flask.redirect(own_url, code=303))
     if response.status_code != 200:

@@ -26,8 +26,9 @@ api_base_url = os.getenv('API_BASE_URL', 'http://127.0.0.1:5002/api')
 SESSION_COOKIE_NAME='session'
 
 
-logging.basicConfig(level=logging.DEBUG)
+logging.basicConfig()
 log = logging.getLogger('oauth2-server')
+log.setLevel(logging.DEBUG)
 
 with open(jwt_key, 'rb') as f:
     key_data = f.read()
@@ -58,6 +59,15 @@ def issue_token(subject, audience, claims, expiry):
     token = jwt.encode(header, claims, signing_key).decode("ascii")
     return token
 
+def log_request(prefix, req):
+    '''Log a Flask HTTP request (header and body)'''
+    data = req.get_data()
+    log.debug('{} # {} {}'.format(prefix, req.method, req.path))
+    for hdr in req.headers:
+        log.debug('{} # {}: {}'.format(prefix, hdr[0], hdr[1]))
+    log.debug(prefix+' #')
+    for ln in data.decode("ascii").split('\n'):
+        log.debug('{} # {}'.format(prefix, ln))
 
 @app.route('/', methods=['GET'])
 def index():
@@ -176,6 +186,7 @@ def issue_code_and_redirect(session, state):
 @app.route('/token', methods=['POST'])
 def token():
     req = flask.request
+    log_request('GET-TOKEN', req)
     client_auth = req.headers.get('Authorization')
 
     log.info("GET-TOKEN: Client auth: '{}'".format(client_auth))
@@ -263,6 +274,7 @@ def token():
 @app.route('/userinfo', methods=['GET'])
 def userinfo():
     req = flask.request
+    log_request('GET-USERINFO', req)
     access_token = req.headers.get('Authorization', None)
     # TODO: if not access_token
 
