@@ -31,7 +31,7 @@ sessions = dict()
 oauth2_url = os.getenv('OAUTH2_URL', 'http://localhost:5001/authorize')
 oauth2_token_url = os.getenv('OAUTH2_TOKEN_URL', 'http://localhost:5001/token')
 oauth2_userinfo_url = os.getenv('OAUTH2_USERINFO_URL', 'http://localhost:5001/userinfo')
-oidc_end_session_url = os.getenv('OIDC_END_SESSION_URL', 'http://localhost:5001/logout')
+oidc_end_session_url = os.getenv('OIDC_END_SESSION_URL', 'http://localhost:5001/endsession')
 oidc_jwks_url = os.getenv('OIDC_JWKS_URL', 'http://localhost:5001/.well-known/jwks.json')
 client_id = os.getenv('CLIENT_ID', 'client-123-id')
 client_secret = os.getenv('CLIENT_SECRET', 'client-123-password')
@@ -252,15 +252,24 @@ def refresh_token():
 @app.route('/logout', methods=['POST'])
 def logout():
     req = flask.request
-    id_token = req.form.get('idtoken')
-    log.info('Logout, id-token: {}'.format(id_token))
+    session_cookie = req.cookies.get(SESSION_COOKIE_NAME)
+    if session_cookie not in sessions:
+        return flask.make_response(flask.redirect(own_url, code=303))
 
-    global sessions
-    sessions = dict()
-    # FIXME: Only logout subject
+    session_id = session_cookie
+    session = sessions[session_id]
+
+    log.info('Logout, session {}'.format(session_id))
+
+
+
     # FIXME: Logout at IDP using oidc_end_session_url
 
+
+
+    del sessions[session_id]
     resp = flask.make_response(flask.redirect(own_url, code=303))
+    resp.set_cookie(SESSION_COOKIE_NAME, '', samesite='Lax', httponly=True, expires=0)
     return resp
 
 @app.route('/checklogin', methods=['POST'])
@@ -272,7 +281,6 @@ def check_login():
         session = sessions[session_id]
 
     log.info('Check login, session id {}: {}'.format(session_id, session))
-
 
     state = str(uuid.uuid4())
     data = {'response_type': 'code',

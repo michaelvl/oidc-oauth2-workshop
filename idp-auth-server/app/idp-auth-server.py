@@ -107,7 +107,7 @@ def authorize():
         if prompt == 'none':
             id_token_hint = req.form.get('id_token_hint')
             id_token_claims = jwt.decode(id_token_hint, signing_key_pub)
-            log.info('ID token hint: {}'.format(id_token_claims))
+            log.info('ID token hint claims: {}'.format(id_token_claims))
             existing_session_id = get_session_by_subject(id_token_claims['sub'])
             if existing_session_id:
                 log.info('Found existing session {}'.format(existing_session_id))
@@ -154,7 +154,12 @@ def approve():
 
     log.info("User: '{}' authorized scope: '{}' for client_id: '{}'".format(subject, auth_ctx['scope'], auth_ctx['client_id']))
 
-    session_id = str(uuid.uuid4())
+    existing_session_id = get_session_by_subject(subject)
+    if existing_session_id:
+        session_id = existing_session_id
+    else:
+        session_id = str(uuid.uuid4())
+
     session = {'subject': subject,
                'session_id': session_id,
                'client_id': auth_ctx['client_id'],
@@ -308,6 +313,22 @@ def userinfo():
 
     return claims
 
+@app.route('/endsession', methods=['GET', 'POST'])
+def endsession():
+    req = flask.request
+    id_token_hint = req.values.get('id_token_hint')
+
+    # TODO: Validate id_token_hint was issued by us
+    id_token_claims = jwt.decode(id_token_hint, signing_key_pub)
+    log.info('END-SESSION: ID token hint claims: {}'.format(id_token_claims))
+    existing_session_id = get_session_by_subject(id_token_claims['sub'])
+    if existing_session_id:
+        log.info('END-SESSION: Logout, session: {}'.format(session_id))
+        del sessions[session_id]
+
+    resp = flask.make_response(flask.redirect(own_base_url, code=303))
+    return resp
+
 @app.route('/.well-known/jwks.json', methods=['GET'])
 def jwks():
     jwks = { 'keys': [ signing_key_pub.as_dict() ] }
@@ -320,7 +341,7 @@ def openid_configuration():
                'token_endpoint': own_base_url+'/token',
                'userinfo_endpoint': own_base_url+'/userinfo',
                'jwks_uri': own_base_url+'/.well-known/jwks.json',
-               'end_session_endpoint': own_base_url+'/logout'}
+               'end_session_endpoint': own_base_url+'/endsession'}
     return flask.Response(json.dumps(config), mimetype='application/json')
 
 
