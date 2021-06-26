@@ -1,0 +1,41 @@
+<!DOCTYPE html>
+<html>
+  <style>
+.header {
+  background-color: #cf4C50;
+  color: white;
+  padding: 16px;
+  font-size: x-large;
+}
+.framed {
+  background-color: #fff9e6;
+  border: 2px solid grey;
+  border-radius: 5px;
+  padding-top: 10px;
+  padding-right: 10px;
+  padding-bottom: 10px;
+  padding-left: 10px;
+  word-wrap: break-word;
+  margin-bottom: 8px;
+}
+.dev-area {
+  background-color: #ddd;
+}
+  </style>
+  <body>
+    <div class="header"><b>Identity Provider / Athorization Server</b></div>
+
+    <h2>End Session</h2>
+
+    <p>Logout {{subject}}?</p>
+
+    <form action="/endsession-approve" method="post">
+	<input type="hidden" name="sessionid" value="{{session_id}}">
+	<input type="hidden" name="redirurl" value="{{redir_url}}">
+	<button type="submit">Logout</button>
+      </form>
+      </p>
+    </div>
+
+  </body>
+</html>

@@ -261,14 +261,9 @@ def logout():
 
     log.info('Logout, session {}'.format(session_id))
 
-
-
-    # FIXME: Logout at IDP using oidc_end_session_url
-
-
-
     del sessions[session_id]
-    resp = flask.make_response(flask.redirect(own_url, code=303))
+    redir_url = build_url(oidc_end_session_url, id_token_hint=session['id_token'], post_logout_redirect_uri=own_url)
+    resp = flask.make_response(flask.redirect(redir_url, code=303))
     resp.set_cookie(SESSION_COOKIE_NAME, '', samesite='Lax', httponly=True, expires=0)
     return resp
 

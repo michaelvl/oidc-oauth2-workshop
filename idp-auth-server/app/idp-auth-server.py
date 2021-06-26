@@ -317,16 +317,29 @@ def userinfo():
 def endsession():
     req = flask.request
     id_token_hint = req.values.get('id_token_hint')
+    redir_url = req.values.get('post_logout_redirect_uri')
 
     # TODO: Validate id_token_hint was issued by us
     id_token_claims = jwt.decode(id_token_hint, signing_key_pub)
     log.info('END-SESSION: ID token hint claims: {}'.format(id_token_claims))
     existing_session_id = get_session_by_subject(id_token_claims['sub'])
     if existing_session_id:
-        log.info('END-SESSION: Logout, session: {}'.format(session_id))
-        del sessions[session_id]
+        session = sessions[existing_session_id]
+        return flask.render_template('endsession.html', session_id=existing_session_id,
+                                     subject=session['subject'], redir_url=redir_url)
+    else:
+        return flask.render_template('error.html', text='Error logging out')
 
-    resp = flask.make_response(flask.redirect(own_base_url, code=303))
+@app.route('/endsession-approve', methods=['GET', 'POST'])
+def endsession_approve():
+    req = flask.request
+    session_id = req.form.get('sessionid')
+    redir_url = req.form.get('redirurl')
+
+    log.info('END-SESSION-APPROVE: Ending session: {}'.format(session_id))
+    del sessions[session_id]
+
+    resp = flask.make_response(flask.redirect(redir_url, code=303))
     return resp
 
 @app.route('/.well-known/jwks.json', methods=['GET'])
