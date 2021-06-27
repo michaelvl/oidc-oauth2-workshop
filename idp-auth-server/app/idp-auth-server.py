@@ -108,6 +108,12 @@ def authorize():
             id_token_hint = req.form.get('id_token_hint')
             id_token_claims = jwt.decode(id_token_hint, signing_key_pub)
             log.info('ID token hint claims: {}'.format(id_token_claims))
+            if own_base_url not in id_token_claims['aud']:
+                log.error('ID token hint not for us')
+                redir_url = build_url(redirect_uri, error='login_required', state=state)
+                response = flask.make_response(flask.redirect(redir_url, code=303))
+                return response
+
             existing_session_id = get_session_by_subject(id_token_claims['sub'])
             if existing_session_id:
                 log.info('Found existing session {}'.format(existing_session_id))
@@ -271,8 +277,9 @@ def token():
         claims = dict()
         # See https://openid.net/specs/openid-connect-basic-1_0.html#StandardClaims for what claims to include in access token
         if 'profile' in scope:
-            claims['name'] = 'Name of user {}'.format(subject)
-        response['id_token'] = issue_token(subject, client_id, claims, datetime.datetime.utcnow()+datetime.timedelta(minutes=60))
+            claims['name'] = 'Name of user {}'.format(subject.capitalize())
+            claims['preferred_username'] = subject.capitalize()
+        response['id_token'] = issue_token(subject, [client_id, own_base_url], claims, datetime.datetime.utcnow()+datetime.timedelta(minutes=60))
 
     return flask.Response(json.dumps(response), mimetype='application/json')
     
@@ -320,7 +327,13 @@ def endsession():
     redir_url = req.values.get('post_logout_redirect_uri')
 
     # TODO: Validate id_token_hint was issued by us
+
     id_token_claims = jwt.decode(id_token_hint, signing_key_pub)
+
+    if own_url not in id_token_claims['aud']:
+        log.error('END-SESSION: ID token hint not for us')
+        return flask.render_template('error.html', text='ID token not for us')
+
     log.info('END-SESSION: ID token hint claims: {}'.format(id_token_claims))
     existing_session_id = get_session_by_subject(id_token_claims['sub'])
     if existing_session_id:
