@@ -113,6 +113,7 @@ def callback():
     if state not in outstanding_requests:
         log.error('State not valid: {}'.format(state))
     req_out = outstanding_requests[state]
+    session_id = req_out['session_id']
     del outstanding_requests[state]
     log.info('Found outstanding request: {} for state {}'.format(req_out, state))
 
@@ -120,7 +121,11 @@ def callback():
 
     log.info("Got callback with code {}, state {}".format(code, state))
     if not code:
-        log.error('Received no code: {}'.format(req))
+        log.error('Received no code, deleting session: {}'.format(session_id))
+        resp = flask.make_response(flask.redirect(own_url, code=303))
+        resp.set_cookie(SESSION_COOKIE_NAME, '', samesite='Lax', httponly=True, expires=0)
+        del sessions[session_id]
+        return resp
 
     data = {'code': code,
             'grant_type': 'authorization_code',
@@ -264,6 +269,7 @@ def logout():
 
     del sessions[session_id]
     redir_url = build_url(oidc_end_session_url, id_token_hint=session['id_token'], post_logout_redirect_uri=own_url)
+    log.info('Logout, using redir url {}'.format(redir_url))
     resp = flask.make_response(flask.redirect(redir_url, code=303))
     resp.set_cookie(SESSION_COOKIE_NAME, '', samesite='Lax', httponly=True, expires=0)
     return resp
@@ -275,6 +281,8 @@ def check_login():
     session_id = session_cookie
     if session_id in sessions:
         session = sessions[session_id]
+    else:
+        return flask.make_response(flask.redirect(own_url, code=303))
 
     log.info('Check login, session id {}: {}'.format(session_id, session))
 
@@ -294,11 +302,10 @@ def check_login():
     log.info("Check login using url: '{}', state {}".format(oauth2_url, state))
     response = requests.post(oauth2_url, data=data, headers=headers)
     log.info('Got status code: {}'.format(response.status_code))
-    log_response('CHECK-LOGIN', response)
 
     resp = flask.make_response(flask.redirect(own_url, code=303))
     if response.status_code != 200:
-        log.info('Clear session and cookine')
+        log.info('Clear session and cookie')
         resp.set_cookie(SESSION_COOKIE_NAME, '', samesite='Lax', httponly=True, expires=0)
         del sessions[session_id]
 
