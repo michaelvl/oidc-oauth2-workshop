@@ -80,7 +80,8 @@ def index():
         return flask.render_template('token.html',
                                      id_token=session['id_token'],
                                      id_token_parsed=json_pretty_print(session['id_token_claims']),
-                                     username=session['id_token_claims']['sub'],
+                                     subject=session['id_token_claims']['sub'],
+                                     username=session['id_token_claims']['preferred_username'],
                                      access_token=session['access_token'],
                                      refresh_token=session['refresh_token'])
     else:
