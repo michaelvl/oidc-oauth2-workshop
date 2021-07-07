@@ -77,15 +77,23 @@ def index():
     session_cookie = req.cookies.get(SESSION_COOKIE_NAME)
     if session_cookie in sessions:
         session = sessions[session_cookie]
+        log.info('ID token claims: {}'.format(session['id_token_claims']))
+        username=session['id_token_claims'].get('preferred_username', session['id_token_claims']['sub'])
         return flask.render_template('token.html',
                                      id_token=session['id_token'],
                                      id_token_parsed=json_pretty_print(session['id_token_claims']),
                                      subject=session['id_token_claims']['sub'],
-                                     username=session['id_token_claims']['preferred_username'],
+                                     username=username,
                                      access_token=session['access_token'],
                                      refresh_token=session['refresh_token'])
     else:
         return flask.render_template('index.html', client_id=client_id, oauth2_url=oauth2_url)
+
+@app.route('/<path:text>', methods=['GET'])
+def all_routes(text):
+    log.info("Path '{}'".format(text))
+    if text in ['style.css']:
+        return flask.Response(flask.render_template(text), mimetype='text/css')
 
 @app.route('/login', methods=['POST'])
 def login():
@@ -93,12 +101,13 @@ def login():
     scope = req.form.get('scope')
     response_type = 'code'
     state = str(uuid.uuid4())
-    redir_url = build_url(oauth2_url, response_type=response_type, client_id=client_id, scope=scope, redirect_uri=redirect_uri, state=state)
+    nonce = str(uuid.uuid4())
+    redir_url = build_url(oauth2_url, response_type=response_type, client_id=client_id, scope=scope, redirect_uri=redirect_uri, state=state, nonce=nonce)
     session_id = str(uuid.uuid4())
     session = {'scope': scope}
     sessions[session_id] = session
     log.info('Created session {}'.format(session_id))
-    outstanding_requests[state] = {'session_id': session_id}
+    outstanding_requests[state] = {'session_id': session_id, 'nonce': nonce}
     log.info("Redirecting LOGIN to '{}'".format(redir_url))
     return flask.redirect(redir_url, code=303)
 
@@ -114,6 +123,7 @@ def callback():
         log.error('State not valid: {}'.format(state))
     req_out = outstanding_requests[state]
     session_id = req_out['session_id']
+    nonce = req_out['nonce']
     del outstanding_requests[state]
     log.info('Found outstanding request: {} for state {}'.format(req_out, state))
 
@@ -154,6 +164,9 @@ def callback():
 
     claims = jwt.decode(id_token, token_pub_jwk)
 
+    if nonce and ('nonce' not in claims or claims['nonce'] != nonce):
+        log.error('Nonce mismatch, expected {}, got claims {}'.format(nonce), claims)
+
     session_id = req_out['session_id']
     session = sessions[session_id]
     scope = session['scope']
@@ -171,11 +184,17 @@ def callback():
 @app.route('/getuserinfo', methods=['POST'])
 def get_userinfo():
     req = flask.request
-    access_token = req.form.get('accesstoken')
-    log.info('Get UserInfo, access-token: {}'.format(access_token))
+    session_cookie = req.cookies.get(SESSION_COOKIE_NAME)
+    session_id = session_cookie
+    if session_id in sessions:
+        session = sessions[session_id]
+    else:
+        return flask.make_response(flask.redirect(own_url, code=303))
+
+    log.info('Get UserInfo, access-token: {}'.format(session['access_token']))
 
     # FIXME bearer, type
-    headers = {'Authorization': 'Bearer '+access_token}
+    headers = {'Authorization': 'Bearer ' + session['access_token']}
 
     log.info("Getting userinfo from url: '{}'".format(oauth2_userinfo_url))
     response = requests.get(oauth2_userinfo_url, headers=headers)
@@ -185,20 +204,26 @@ def get_userinfo():
         return 'Failed with status {}'.format(response.status_code)
 
     response_json = response.json()
-    return flask.render_template('userinfo.html', access_token=access_token,
+    return flask.render_template('userinfo.html', access_token=session['access_token'],
                                  userinfo=json_pretty_print(response_json))
 
 @app.route('/read-api', methods=['POST'])
 def read_api():
     req = flask.request
-    access_token = req.form.get('accesstoken')
-    log.info('Read API, access-token: {}'.format(access_token))
+    session_cookie = req.cookies.get(SESSION_COOKIE_NAME)
+    session_id = session_cookie
+    if session_id in sessions:
+        session = sessions[session_id]
+    else:
+        return flask.make_response(flask.redirect(own_url, code=303))
+
+    log.info('Read API, session: {}'.format(session_id))
 
     # FIXME bearer, type
     auth_token_usage = req.form.get('auth-token-usage')
     log.info('Read API, token usage: {}'.format(auth_token_usage))
     if auth_token_usage == 'authentication-header':
-        headers = {'Authorization': 'Bearer '+access_token}
+        headers = {'Authorization': 'Bearer ' + session['access_token']}
     else:
         headers = {}
 
@@ -210,17 +235,22 @@ def read_api():
         return 'Failed with code {}, headers: {}'.format(response.status_code, response.headers)
 
     response_json = response.json()
-    return flask.render_template('read-api.html', access_token=access_token,
+    return flask.render_template('read-api.html', access_token=session['access_token'],
                                  api_data=json_pretty_print(response_json))
 
 @app.route('/refresh-token', methods=['POST'])
 def refresh_token():
     req = flask.request
     session_cookie = req.cookies.get(SESSION_COOKIE_NAME)
-    refresh_token = req.form.get('refreshtoken')
-    log.info('Refresh token, refresh-token: {}'.format(refresh_token))
+    session_id = session_cookie
+    if session_id in sessions:
+        session = sessions[session_id]
+    else:
+        return flask.make_response(flask.redirect(own_url, code=303))
 
-    data = {'refresh_token': refresh_token,
+    log.info('Refresh token, session {}'.format(session_id))
+
+    data = {'refresh_token': session['refresh_token'],
             'grant_type': 'refresh_token'}
     headers = {'Authorization': 'Basic '+encode_client_creds(client_id, client_secret),
                'Content-type': 'application/x-www-form-urlencoded'}
@@ -237,17 +267,20 @@ def refresh_token():
         if token_type in response_json:
             log.info("Got {} token '{}'".format(token_type, response_json[token_type]))
 
-    id_token = response_json['id_token']
-    access_token = response_json['access_token']
+    if 'id_token' in response_json:
+        id_token = response_json['id_token']
 
-    token_pub_jwk_json = token_get_jwk(id_token)
-    token_pub_jwk = JsonWebKey.import_key(token_pub_jwk_json)
+        token_pub_jwk_json = token_get_jwk(id_token)
+        token_pub_jwk = JsonWebKey.import_key(token_pub_jwk_json)
 
-    claims = jwt.decode(id_token, token_pub_jwk)
+        claims = jwt.decode(id_token, token_pub_jwk)
 
-    session = {'id_token': id_token,
-               'id_token_claims': claims,
-               'access_token': access_token}
+        session['id_token'] = id_token,
+        session['id_token_claims'] = claims
+
+    if 'access_token' in response_json:
+        session['access_token'] = response_json['access_token']
+
     if 'refresh_token' in response_json:
         session['refresh_token'] = response_json['refresh_token']
     sessions[session_cookie] = session

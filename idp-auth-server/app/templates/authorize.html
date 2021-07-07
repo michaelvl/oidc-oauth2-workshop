@@ -1,45 +1,16 @@
 <!DOCTYPE html>
 <html>
-  <style>
-.header {
-  background-color: #cf4C50;
-  color: white;
-  padding: 16px;
-  font-size: x-large;
-}
-.framed {
-  background-color: #fff9e6;
-  border: 2px solid grey;
-  border-radius: 5px;
-  padding-top: 10px;
-  padding-right: 10px;
-  padding-bottom: 10px;
-  padding-left: 10px;
-  word-wrap: break-word;
-  margin-bottom: 8px;
-}
-.dev-area {
-  background-color: #ddd;
-}
-  </style>
+  <head>
+    <link rel="stylesheet" type="text/css" href="style.css">
+  </head>
   <body>
     <div class="header"><b>Identity Provider / Athorization Server</b></div>
 
-    <h2>Step 2: Authenticate and authorize?</h2>
+    <h2>Step 3: Authorize?</h2>
 
-    <p>In this step we authorize who we are towards the identity-provider using e.g. username and password.</p>
+      <p>Authorize that tokens with the specified scope can be issued to the client.</p>
 
     <form action="/approve" method="post">
-      <label for="username"><b>Username</b></label>
-      <input type="text" placeholder="Enter Username" name="username" required>
-
-      <label for="password"><b>Password</b></label>
-      <input type="password" placeholder="Enter Password" name="password" required>
-
-      <input type="hidden" name="reqid" value="{{reqid}}">
-
-      <p>Next, we authorize that tokens with the specified scope can be issued to the client.</p>
-
       <div class="framed">
 	<p>Approve this client?</p>
 	<b><p>{{client_id}}</p></b>
@@ -49,21 +20,7 @@
 	<input type="submit" name="approve" value="Approve">
 	<input type="submit" name="deny" value="Deny">
       </div>
-      <p>The settings below allows for experimentation with different advanced usecases. These settings are normally not under user control.</p>
-      <div class="framed dev-area">
-        <p>
-        <label for="scope">Access token life-time (seconds)</label>
-        <input type="text" name="access_token_lifetime" value="3600" required>
-        </p>
-        <p>
-        <label for="scope">Refresh token life-time (seconds)</label>
-        <input type="text" name="refresh_token_lifetime" value="36000" required>
-        </p>
-        <p>
-        <label for="scope">Set cookie</label>
-        <input type="checkbox" name="set_cookie" value="set">
-        </p>
-      </div>
+      <input type="hidden" name="reqid" value="{{reqid}}">
     </form>
 
   </body>

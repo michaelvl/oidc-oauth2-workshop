@@ -1,45 +1,32 @@
 <!DOCTYPE html>
 <html>
-  <style>
-.header {
-  background-color: #cf4C50;
-  color: white;
-  padding: 16px;
-  font-size: x-large;
-}
-.framed {
-  background-color: #fff9e6;
-  border: 2px solid grey;
-  border-radius: 5px;
-  padding-top: 10px;
-  padding-right: 10px;
-  padding-bottom: 10px;
-  padding-left: 10px;
-  word-wrap: break-word;
-  margin-bottom: 8px;
-}
-.dev-area {
-  background-color: #ddd;
-}
-  </style>
+  <head>
+    <link rel="stylesheet" type="text/css" href="style.css">
+  </head>
   <body>
     <div class="header"><b>Identity Provider / Athorization Server</b></div>
 
     <h2>Active Sessions</h2>
 
     {% if sessions %}
-    {% for session in sessions %}
+    {% for session_id in sessions %}
     <div class="framed">
-      <p><b> {{ session }} </b></p>
+      <p><b> {{ session_id }} </b></p>
       <table>
-	<tr><td>subject:</td><td> {{ sessions[session].subject }} </td></tr>
-	<tr><td>scope:</td><td> {{ sessions[session].scope }} </td></tr>
-	<tr><td>client_id:</td><td> {{ sessions[session].client_id }} </td></tr>
+        <tr><td>subject:</td><td> {{ sessions[session_id].subject }} </td></tr>
+        {% for client_session in sessions[session_id].client_sessions %}
+        <tr><td>client_id:</td><td> {{ client_session.client_id }} </td></tr>
+        <tr><td>scope:</td><td> {{ client_session.scope }} </td></tr>
+	  {% if client_session.code_challenge_method %}
+          <tr><td>code challenge method:</td><td> {{ client_session.code_challenge_method }} </td></tr>
+          <tr><td>code challenge:</td><td> {{ client_session.code_challenge }} </td></tr>
+          {% endif %}
+        {% endfor %}
       </table>
       <p>
       <form action="/logout" method="post">
-	<input type="hidden" name="sessionid" value="{{session}}">
-	<button type="submit">Logout</button>
+        <input type="hidden" name="sessionid" value="{{session_id}}">
+        <button type="submit">Logout</button>
       </form>
       </p>
     </div>

@@ -5,15 +5,19 @@
 
 import os
 import flask
+from flask_cors import CORS
 import datetime
 import json
 import uuid
 import urllib
+import base64
+import hashlib
 import logging
 
 from authlib.jose import jwt, jwk, JsonWebKey
 
 app = flask.Flask('oauth2-server')
+CORS(app, resources={r"/*": {"origins": "*"}})
 
 auth_context = dict()
 code_metadata = dict()
@@ -45,6 +49,12 @@ def get_session_by_subject(sub):
             return session_id
     return None
 
+def get_client_session_by_id(session, client_id):
+    for cs in session['client_sessions']:
+        if cs['client_id']==client_id:
+            return cs
+    return None
+
 def build_url(url, **kwargs):
     return '{}?{}'.format(url, urllib.parse.urlencode(kwargs))
 
@@ -68,10 +78,16 @@ def log_request(prefix, req):
     log.debug(prefix+' #')
     for ln in data.decode("ascii").split('\n'):
         log.debug('{} # {}'.format(prefix, ln))
-
+        
 @app.route('/', methods=['GET'])
 def index():
     return flask.render_template('index.html', sessions=sessions)
+
+@app.route('/<path:text>', methods=['GET'])
+def all_routes(text):
+    log.info("Path '{}'".format(text))
+    if text in ['style.css']:
+        return flask.Response(flask.render_template(text), mimetype='text/css')
 
 @app.route('/logout', methods=['POST'])
 def logout():
@@ -93,7 +109,10 @@ def authorize():
     scope = req.values.get('scope')
     redirect_uri = req.values.get('redirect_uri')
     state = req.values.get('state')
+    nonce = req.values.get('nonce')
     prompt = req.values.get('prompt')
+    code_challenge_method = req.values.get('code_challenge_method')
+    code_challenge = req.values.get('code_challenge')
 
     reqid = str(uuid.uuid4())
     session_cookie = req.cookies.get(SESSION_COOKIE_NAME)
@@ -101,7 +120,7 @@ def authorize():
     log.info('Session cookie: {}'.format(session_cookie))
     if session_cookie in sessions:
         log.info('This is an existing session identified by the session cookie, short-cutting login process...')
-        return issue_code_and_redirect(sessions[session_cookie], state)
+        return issue_code_and_redirect(sessions[session_cookie], client_id, state, nonce)
     else:
         log.info('No session cookie')
         if prompt == 'none':
@@ -118,7 +137,7 @@ def authorize():
             if existing_session_id:
                 log.info('Found existing session {}'.format(existing_session_id))
                 # FIXME
-                return issue_code_and_redirect(sessions[existing_session_id], state)
+                return issue_code_and_redirect(sessions[existing_session_id], client_id, state, nonce)
             else:
                 # FIXME
                 log.info('No existing session found')
@@ -128,29 +147,47 @@ def authorize():
                 return response
 
     global auth_context
-    auth_context[reqid] = {'scope': scope, 'client_id': client_id, 'redirect_uri': redirect_uri, 'state': state}
-    log.info("AUTHORIZE: Requesting login. Scope: '{}', client-id: '{}', state: {}, using request id: {}".format(scope, client_id, state, reqid))
+    auth_context[reqid] = {'scope': scope,
+                           'client_id': client_id,
+                           'redirect_uri': redirect_uri,
+                           'state': state,
+                           'nonce': nonce,
+                           'code_challenge': code_challenge,
+                           'code_challenge_method': code_challenge_method,
+    }
+    log.info("AUTHENTICATE: Requesting login. Scope: '{}', client-id: '{}', state: {}, using request id: {}".format(scope, client_id, state, reqid))
+    return flask.render_template('authenticate.html', reqid=reqid)
+
+@app.route('/login', methods=['POST'])
+def login():
+    req = flask.request
+    reqid = req.form.get('reqid')
+    subject = req.form.get('username')
+    password = req.form.get('password')
+
+    if password != 'valid':
+        return flask.render_template('error.html', text='Authentication error')
+
+    scope = auth_context[reqid]['scope']
+    client_id = auth_context[reqid]['client_id']
+    state = auth_context[reqid]['state']
+    auth_context[reqid]['subject'] = subject
+
+    log.info("LOGIN: Requesting authorization. Scope: '{}', client-id: '{}', state: {}, using request id: {}".format(scope, client_id, state, reqid))
     return flask.render_template('authorize.html', client_id=client_id, scope=scope, reqid=reqid)
 
 @app.route('/approve', methods=['POST'])
 def approve():
     req = flask.request
     reqid = req.form.get('reqid')
-    subject = req.form.get('username')
-    password = req.form.get('password')
-    access_token_lifetime = int(req.form.get('access_token_lifetime'))
-    refresh_token_lifetime = int(req.form.get('refresh_token_lifetime'))
-    set_cookie = req.form.get('set_cookie')
+    subject = auth_context[reqid]['subject']
 
     log.info("APPROVE: User: '{}', request id: {}".format(subject, reqid))
 
     if not 'approve' in req.form:
         return flask.render_template('error.html', text='Not approved')
-    if password != 'valid':
-        return flask.render_template('error.html', text='Authentication error')
 
     # TODO: Check age of request
-    global auth_context
     if reqid not in auth_context.keys():
         return flask.render_template('error.html', text='Unknown request ID')
     auth_ctx = auth_context[reqid]
@@ -168,29 +205,32 @@ def approve():
 
     session = {'subject': subject,
                'session_id': session_id,
-               'client_id': auth_ctx['client_id'],
-               'scope': auth_ctx['scope'],
-               'redirect_uri': auth_ctx['redirect_uri'],
-               #'state': auth_ctx['state'],
-               'access_token_lifetime': access_token_lifetime,
-               'refresh_token_lifetime' : refresh_token_lifetime,
-               'set_cookie': set_cookie}
+               'client_sessions': [
+                   {
+                       'client_id': auth_ctx['client_id'],
+                       'scope': auth_ctx['scope'],
+                       'redirect_uri': auth_ctx['redirect_uri'],
+                       'code_challenge': auth_ctx['code_challenge'],
+                       'code_challenge_method': auth_ctx['code_challenge_method']
+                   }
+               ]
+    }
     sessions[session_id] = session
     log.info('Created session {}'.format(session_id))
 
-    return issue_code_and_redirect(session, auth_ctx['state'])
+    return issue_code_and_redirect(session, auth_ctx['client_id'], auth_ctx['state'], auth_ctx['nonce'])
 
-def issue_code_and_redirect(session, state):
+def issue_code_and_redirect(session, client_id, state, nonce):
     code = str(uuid.uuid4())
     global code_metadata
-    code_metadata[code] = session
+    code_metadata[code] = {'session_id': session['session_id'], 'client_id': client_id, 'nonce': nonce}
 
-    redir_url = build_url(session['redirect_uri'], code=code, state=state)
+    client_session = get_client_session_by_id(session, client_id)
+    redir_url = build_url(client_session['redirect_uri'], code=code, state=state)
     log.info("Redirecting to callback '{}'".format(redir_url))
     resp = flask.make_response(flask.redirect(redir_url, code=303))
 
-    if session['set_cookie']:
-        resp.set_cookie(SESSION_COOKIE_NAME, session['session_id'], samesite='Lax', httponly=True)
+    resp.set_cookie(SESSION_COOKIE_NAME, session['session_id'], samesite='Lax', httponly=True)
 
     return resp
 
@@ -210,26 +250,42 @@ def token():
     if grant_type == 'authorization_code':
         code = req.form.get('code')
         redir_uri = req.form.get('redirection_uri')
+        code_verifier = req.form.get('code_verifier')
 
         if code not in code_metadata:
-            return flask.render_template('error.html', text='Invalid code')
+            return flask.make_response(flask.render_template('error.html', text='Invalid code'), 403)
 
         log.info("GET-TOKEN: Valid code: '{}'".format(code))
 
-        session = code_metadata[code]
+        session_id = code_metadata[code]['session_id']
+        client_id = code_metadata[code]['client_id']
+        nonce = code_metadata[code]['nonce']
         del code_metadata[code]    # Code can only be used once
 
         # TODO: Validate that code is not too old
-        # TODO: Validate that code matches cliend_id
         # TODO: Validate redir_uri and grant type matches code
 
         # Context comes from session metadata
+        session = sessions[session_id]
         subject = session['subject']
-        scope = session['scope']
-        client_id = session['client_id']
-        session_id = session['session_id']
-        access_token_lifetime = session['access_token_lifetime']
-        refresh_token_lifetime = session['refresh_token_lifetime']
+        client_session = get_client_session_by_id(session, client_id)
+
+        if client_session['code_challenge']:
+            log.info("GET-TOKEN: Challenge '{}', verifier '{}', method '{}'".format(client_session['code_challenge'], code_verifier, client_session['code_challenge_method']))
+            if client_session['code_challenge_method'] == 'plain' and code_verifier != client_session['code_challenge']:
+                return flask.make_response('error=invalid_grant', 403)
+            elif client_session['code_challenge_method'] == 'S256':
+                digest = hashlib.sha256(code_verifier.encode('ascii')).digest()
+                our_code_challenge = base64.urlsafe_b64encode(digest).decode('ascii')[:-1]
+                log.info("Self-encoded challenge '{}', got challenge '{}'".format(our_code_challenge, client_session['code_challenge']))
+                if our_code_challenge != client_session['code_challenge']:
+                    return flask.make_response('error=invalid_grant', 403)
+            else:
+                return flask.make_response('error=invalid_grant', 403)
+        
+        scope = client_session['scope']
+        access_token_lifetime = 1200
+        refresh_token_lifetime = 3600
 
     elif grant_type == 'refresh_token':
         refresh_token = req.form.get('refresh_token')
@@ -251,24 +307,26 @@ def token():
         client_id = refresh_token_json['client_id']
         access_token_lifetime = refresh_token_json['access_token_lifetime']
         refresh_token_lifetime = refresh_token_json['refresh_token_lifetime']
+        nonce = refresh_token_json['nonce']
 
     else:
         log.error("GET-TOKEN: Invalid grant type: '{}'".format(grant_type))
         return 400
 
     # Issue tokens (shared for both 'authorization_code' and 'refresh_token' grants)
-    own_url = req.base_url.removesuffix('/token')
-    access_token = issue_token(subject, audience=[api_base_url, own_url+'/userinfo'],
+    log.info('GET-TOKEN: Issuing tokens!')
+    access_token = issue_token(subject, audience=[api_base_url, own_base_url+'/userinfo'],
                                claims={
                                    'token_use': 'access',
                                    'scope': scope},
                                expiry=datetime.datetime.utcnow()+datetime.timedelta(seconds=access_token_lifetime))
-    refresh_token = issue_token(subject, audience=own_url+'/token',
+    refresh_token = issue_token(subject, audience=own_base_url+'/token',
                                 claims={
                                     'client_id': client_id,
                                     'session_id': session_id,
                                     'access_token_lifetime': access_token_lifetime,
                                     'refresh_token_lifetime' : refresh_token_lifetime,
+                                    'nonce': nonce,
                                     'token_use': 'refresh',
                                     'scope': scope},
                                expiry=datetime.datetime.utcnow()+datetime.timedelta(seconds=refresh_token_lifetime))
@@ -279,6 +337,8 @@ def token():
         if 'profile' in scope:
             claims['name'] = 'Name of user {}'.format(subject.capitalize())
             claims['preferred_username'] = subject.capitalize()
+            if nonce:
+                claims['nonce'] = nonce
         response['id_token'] = issue_token(subject, [client_id, own_base_url], claims, datetime.datetime.utcnow()+datetime.timedelta(minutes=60))
 
     return flask.Response(json.dumps(response), mimetype='application/json')
@@ -330,7 +390,7 @@ def endsession():
 
     id_token_claims = jwt.decode(id_token_hint, signing_key_pub)
 
-    if own_url not in id_token_claims['aud']:
+    if own_base_url not in id_token_claims['aud']:
         log.error('END-SESSION: ID token hint not for us')
         return flask.render_template('error.html', text='ID token not for us')
 

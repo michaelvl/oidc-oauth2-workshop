@@ -1,36 +1,8 @@
 <!DOCTYPE html>
 <html>
-  <style>
-.header {
-  background-color: #4CAF50;
-  color: white;
-  padding: 16px;
-  font-size: x-large;
-}
-.right {
-  float: right;
-}
-.framed {
-  background-color: #fff9e6;
-  border: 2px solid grey;
-  border-radius: 5px;
-  padding-top: 10px;
-  padding-right: 10px;
-  padding-bottom: 10px;
-  padding-left: 10px;
-  word-wrap: break-word;
-  margin-bottom: 8px;
-}
-.verbatim {
-  white-space: pre-wrap;
-}
-.row {
-  display: inline-block;
-}
-.column {
-  display: block;
-}
-  </style>
+  <head>
+    <link rel="stylesheet" type="text/css" href="style.css">
+  </head>
   <body>
     <div class="header"><b>Client</b></div>
 
@@ -78,14 +50,12 @@
     <p>Access tokens are opaque and cannot be parsed by the client. However, the access-token can be used to fetch user information from the 'userinfo' endpoint (subject to the scope of our access-token).</p>
 
     <form action="/getuserinfo" method="post">
-      <input type="hidden" name="accesstoken" value="{{access_token}}">
       <button type="submit">Read userinfo using access-token</button>
     </form>
 
     <p>If the access token scope includes 'api', then we can also read data from the protected API.</p>
 
     <form action="/read-api" method="post">
-      <input type="hidden" name="accesstoken" value="{{access_token}}">
       <div class="row">
 	<button type="submit">Read from API</button>
         using
@@ -100,8 +70,6 @@
     <div class="framed"><p>{{refresh_token}}</p></div>
 
     <form action="/refresh-token" method="post">
-      <input type="hidden" name="accesstoken" value="{{access_token}}">
-      <input type="hidden" name="refreshtoken" value="{{refresh_token}}">
       <div class="row">
 	<button type="submit">Refresh token</button>
       </div>
