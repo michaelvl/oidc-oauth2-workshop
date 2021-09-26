@@ -28,7 +28,8 @@ app_port = int(os.getenv('APP_PORT', '5001'))
 own_base_url = os.getenv('APP_BASE_URL', 'http://127.0.0.1:5001')
 api_base_url = os.getenv('API_BASE_URL', 'http://127.0.0.1:5002/api')
 SESSION_COOKIE_NAME='session'
-
+cfg_access_token_lifetime = int(os.getenv('ACCESS_TOKEN_LIFETIME', '1200'))
+cfg_refresh_token_lifetime = int(os.getenv('REFRESH_TOKEN_LIFETIME', '3600'))
 
 logging.basicConfig()
 log = logging.getLogger('oauth2-server')
@@ -253,6 +254,7 @@ def token():
         code_verifier = req.form.get('code_verifier')
 
         if code not in code_metadata:
+            log.info("GET-TOKEN: Invalid code: '{}'".format(code))
             return flask.make_response(flask.render_template('error.html', text='Invalid code'), 403)
 
         log.info("GET-TOKEN: Valid code: '{}'".format(code))
@@ -284,8 +286,8 @@ def token():
                 return flask.make_response('error=invalid_grant', 403)
         
         scope = client_session['scope']
-        access_token_lifetime = 1200
-        refresh_token_lifetime = 3600
+        access_token_lifetime = cfg_access_token_lifetime
+        refresh_token_lifetime = cfg_refresh_token_lifetime
 
     elif grant_type == 'refresh_token':
         refresh_token = req.form.get('refresh_token')
@@ -330,7 +332,8 @@ def token():
                                     'token_use': 'refresh',
                                     'scope': scope},
                                expiry=datetime.datetime.utcnow()+datetime.timedelta(seconds=refresh_token_lifetime))
-    response = {'access_token': access_token, 'refresh_token': refresh_token, 'token_type': 'Bearer'}
+    response = {'access_token': access_token, 'expires_in': access_token_lifetime,
+                'refresh_token': refresh_token, 'token_type': 'Bearer'}
     if 'openid' in scope:
         claims = dict()
         # See https://openid.net/specs/openid-connect-basic-1_0.html#StandardClaims for what claims to include in access token

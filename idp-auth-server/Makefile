@@ -17,4 +17,4 @@ run:
 
 .PHONY: dev
 dev:
-	docker run --rm -v $(shell pwd)/app:/usr/src/app:ro -e FLASK_APP=app.py -e FLASK_ENV=development -p5001:5001 $(IMAGE):$(VERSION)
+	docker run --rm -v $(shell pwd)/app:/usr/src/app:ro -e ACCESS_TOKEN_LIFETIME -e REFRESH_TOKEN_LIFETIME -e FLASK_APP=app.py -e FLASK_ENV=development -p5001:5001 $(IMAGE):$(VERSION)
