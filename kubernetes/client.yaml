@@ -1,0 +1,57 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  labels:
+    app: client
+  name: client
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: client
+  template:
+    metadata:
+      labels:
+        app: client
+    spec:
+      containers:
+      - image: oidc-oauth2-workshop:latest
+        name: oidc-oauth2-workshop
+        imagePullPolicy: Never
+        env:
+        - name: FLASK_APP
+          value: client.py
+        - name: FLASK_ENV
+          value: development
+        - name: OAUTH2_URL
+          value: http://$IDP_HOSTNAME/authorize
+        - name: OAUTH2_TOKEN_URL
+          value: http://$IDP_HOSTNAME/token
+        - name: OAUTH2_USERINFO_URL
+          value: http://$IDP_HOSTNAME/userinfo
+        - name: OIDC_END_SESSION_URL
+          value: http://$IDP_HOSTNAME/endsession
+        - name: OIDC_JWKS_URL
+          value: http://$IDP_HOSTNAME/.well-known/jwks.json
+        - name: CLIENT_ID
+          value: CLIENT_ID=client-123-id
+        - name: CLIENT_SECRET
+          value: CLIENT_SECRET=client-123-password
+        - name: API_BASE_URL
+          value: http://api.default.svc.cluster.local
+        - name: BASE_URL
+          value: http://$CLIENT_HOSTNAME
+---
+apiVersion: v1
+kind: Service
+metadata:
+  labels:
+    app: client
+  name: client
+spec:
+  ports:
+  - port: 80
+    protocol: TCP
+    targetPort: 5000
+  selector:
+    app: client

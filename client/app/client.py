@@ -38,8 +38,8 @@ client_secret = os.getenv('CLIENT_SECRET', 'client-123-password')
 app_port = int(os.getenv('APP_PORT', '5000'))
 api_base_url = os.getenv('API_BASE_URL', 'http://localhost:5002')
 
-own_url = 'http://localhost:5000'
-redirect_uri = 'http://localhost:5000/callback'
+own_url = os.getenv('BASE_URL', 'http://localhost:5000')
+redirect_uri = own_url + '/callback'
 
 SESSION_COOKIE_NAME='client-session'
 

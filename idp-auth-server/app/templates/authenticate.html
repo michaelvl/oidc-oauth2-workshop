@@ -1,0 +1,28 @@
+<!DOCTYPE html>
+<html>
+  <head>
+    <link rel="stylesheet" type="text/css" href="style.css">
+  </head>
+  <body>
+    <div class="header"><b>Identity Provider / Athorization Server</b></div>
+
+    <h2>Step 2: Authenticate</h2>
+
+    <p>In this step we authorize who we are towards the identity-provider using e.g. username and password.</p>
+
+    <p>This identity provider will accept any username you choose. You should use the password 'valid' to perform a succesfull login.</p>
+
+    <form action="/login" method="post">
+      <label for="username"><b>Username</b></label>
+      <input type="text" placeholder="Enter Username" name="username" required>
+
+      <label for="password"><b>Password</b></label>
+      <input type="password" placeholder="Enter Password" name="password" required>
+
+      <input type="hidden" name="reqid" value="{{reqid}}">
+
+      <input type="submit" name="login" value="Login">
+    </form>
+
+  </body>
+</html>

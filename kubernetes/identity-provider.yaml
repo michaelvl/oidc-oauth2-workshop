@@ -1,0 +1,47 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  labels:
+    app: idp
+  name: idp
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: idp
+  template:
+    metadata:
+      labels:
+        app: idp
+    spec:
+      containers:
+      - image: oidc-oauth2-workshop:latest
+        name: oidc-oauth2-workshop
+        imagePullPolicy: Never
+        command:
+        - "python"
+        - "/usr/src/idp-auth-server/app/idp-auth-server.py"
+        workingDir: /usr/src/idp-auth-server/app
+        env:
+        - name: FLASK_APP
+          value: idp-auth-server.py
+        - name: FLASK_ENV
+          value: development
+#        - name: ACCESS_TOKEN_LIFETIME
+#          value: 
+#        - name: REFRESH_TOKEN_LIFETIME
+#          value: 
+---
+apiVersion: v1
+kind: Service
+metadata:
+  labels:
+    app: idp
+  name: idp
+spec:
+  ports:
+  - port: 80
+    protocol: TCP
+    targetPort: 5001
+  selector:
+    app: idp

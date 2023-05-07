@@ -1,0 +1,20 @@
+.header {
+  background-color: #cf4C50;
+  color: white;
+  padding: 16px;
+  font-size: x-large;
+}
+.framed {
+  background-color: #fff9e6;
+  border: 2px solid grey;
+  border-radius: 5px;
+  padding-top: 10px;
+  padding-right: 10px;
+  padding-bottom: 10px;
+  padding-left: 10px;
+  word-wrap: break-word;
+  margin-bottom: 8px;
+}
+.dev-area {
+  background-color: #ddd;
+}

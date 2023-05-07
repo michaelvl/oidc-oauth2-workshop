@@ -16,7 +16,7 @@ from jose import jwt as jose_jwt
 app = flask.Flask('protected-api')
 
 app_port = int(os.getenv('APP_PORT', '5002'))
-base_url='http://localhost:{}'.format(app_port)
+base_url = os.getenv('BASE_URL', 'http://localhost:'+str(app_port))
 oidc_jwks_url = os.getenv('OIDC_JWKS_URL', 'http://localhost:5001/.well-known/jwks.json')
 
 logging.basicConfig(level=logging.DEBUG)

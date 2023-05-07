@@ -40,8 +40,7 @@ with open(jwt_key, 'rb') as f:
 signing_key = JsonWebKey.import_key(key_data, {'kty': 'RSA'})
 with open(jwt_key+'.pub', 'rb') as f:
     key_data = f.read()
-signing_key_pub = JsonWebKey.import_key(key_data, {'kty': 'RSA'})
-signing_key_pub['kid'] = signing_key_pub.thumbprint()
+signing_key_pub = JsonWebKey.import_key(key_data, {'kty': 'RSA', 'kid': 'k0'})
 
 
 def get_session_by_subject(sub):
@@ -66,7 +65,7 @@ def issue_token(subject, audience, claims, expiry):
     claims['iat'] = datetime.datetime.utcnow()
     claims['exp'] = expiry
 
-    header = {'alg': 'RS256', 'kid': signing_key_pub['kid'] }
+    header = {'alg': 'RS256', 'kid': signing_key_pub.kid }
     token = jwt.encode(header, claims, signing_key).decode("ascii")
     return token
 
@@ -304,6 +303,11 @@ def token():
 
         # Context comes from refresh token
         session_id = refresh_token_json['session_id']
+        if not session_id in sessions:
+            # 401 invalid_grant, see https://datatracker.ietf.org/doc/html/rfc6749#section-5.2
+            log.error("GET-TOKEN: Invalid session, cannot refresh tokens: '{}'".format(session_id))
+            return flask.make_response('error=invalid_grant', 401)
+        
         subject = refresh_token_json['sub']
         scope = refresh_token_json['scope']
         client_id = refresh_token_json['client_id']
@@ -340,6 +344,7 @@ def token():
         if 'profile' in scope:
             claims['name'] = 'Name of user {}'.format(subject.capitalize())
             claims['preferred_username'] = subject.capitalize()
+            claims['azp'] = client_id
             if nonce:
                 claims['nonce'] = nonce
         response['id_token'] = issue_token(subject, [client_id, own_base_url], claims, datetime.datetime.utcnow()+datetime.timedelta(minutes=60))
