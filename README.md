@@ -58,30 +58,35 @@ The IdP also provides an overview of active sessions at `http://localhost:5001/`
 The following commands will run the three components, client,
 identity-provider/auth server and protected API as separate containers.
 
-Use the following command to run the client:
-
-```console
-(cd client/ && make build dev)
-```
-
 Use the following command to run the identity provider/auth-server:
 
 ```console
-(cd idp-auth-server/ && make build dev)
+make run-idp
 ```
+
+Use the following command to run the client using autoconfiguration
+from the identity provider:
+
+```console
+source configs/oidc-autoconfig.sh localhost:5001
+make run-client
+```
+
 
 Use the following command to run the protected API:
 
 ```console
-(cd protected-api/ && make build dev)
+source configs/oidc-autoconfig.sh localhost:5001
+make run-api
 ```
 
 ## Using Alternative Identity Providers
 
-Running the components with the local identity provider/authorization server is
-enabled with the following environment variables for the client. These can be
-changed to refer to an external identity provider. Alternatively, the script
-`configs/oidc-autoconfig.sh` can be used with an OIDC supporting discovery.
+Running the components with the local identity provider/authorization
+server is enabled with the following environment variables for the
+client. These can be changed to refer to an external identity
+provider. Alternatively, the script `configs/oidc-autoconfig.sh` can
+be used with an OIDC identity provider supporting discovery.
 
 ```
 export OAUTH2_URL=http://localhost:5001/authorize

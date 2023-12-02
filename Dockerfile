@@ -13,4 +13,5 @@ EXPOSE 5000
 
 # This container contains all three components, default to client
 WORKDIR /usr/src/client/app
-ENTRYPOINT ["python", "/usr/src/client/app/client.py"]
+CMD ["/usr/src/client/app/client.py"]
+ENTRYPOINT ["python"]

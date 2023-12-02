@@ -1,4 +1,25 @@
 #################
+.PHONY: container
+container:
+	docker build -t oidc-oauth2-workshop:latest .
+
+#################
+#IMAGE ?= ghcr.io/michaelvl/oidc-oauth2-workshop:latest
+IMAGE ?= oidc-oauth2-workshop:latest
+
+.PHONY: run-client
+run-client:
+	docker run --net host --rm -v $(shell pwd)/app:/usr/src/app:ro -e FLASK_APP=app.py -e FLASK_ENV=development -e OAUTH2_URL -e OAUTH2_TOKEN_URL -e OAUTH2_USERINFO_URL -e OIDC_END_SESSION_URL -e OIDC_JWKS_URL -e CLIENT_ID -e CLIENT_SECRET -e API_BASE_URL -p 5000:5000 $(IMAGE)
+
+.PHONY: run-idp
+run-idp:
+	docker run --rm -v $(shell pwd)/app:/usr/src/app:ro -e ACCESS_TOKEN_LIFETIME -e REFRESH_TOKEN_LIFETIME -e FLASK_APP=app.py -e FLASK_ENV=development -p 5001:5001 -w /usr/src/idp-auth-server/app/ $(IMAGE) idp-auth-server.py
+
+.PHONY: run-api
+run-api:
+	docker run --net host --rm -e OIDC_JWKS_URL -p 5002:5002 -w /usr/src/protected-api/app/ $(IMAGE) protected-api.py
+
+#################
 .PHONY: setup-cluster
 setup-cluster: create-cluster deploy-metallb deploy-gateway-api deploy-contour deploy-contour-gateway-api
 
@@ -14,11 +35,6 @@ create-cluster:
 .PHONY: delete-cluster
 delete-cluster:
 	kind delete cluster --name kind
-
-#################
-.PHONY: container
-container:
-	docker build -t oidc-oauth2-workshop:latest .
 
 #################
 .PHONY: cluster-load-image

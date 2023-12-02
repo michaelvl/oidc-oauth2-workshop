@@ -94,6 +94,7 @@ def all_routes(text):
     log.info("Path '{}'".format(text))
     if text in ['style.css']:
         return flask.Response(flask.render_template(text), mimetype='text/css')
+    flask.abort(404)
 
 @app.route('/login', methods=['POST'])
 def login():

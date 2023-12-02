@@ -12,6 +12,7 @@ import uuid
 import urllib
 import base64
 import hashlib
+import subprocess
 import logging
 
 from authlib.jose import jwt, jwk, JsonWebKey
@@ -35,13 +36,23 @@ logging.basicConfig()
 log = logging.getLogger('oauth2-server')
 log.setLevel(logging.DEBUG)
 
+# with open(jwt_key, 'rb') as f:
+#     key_data = f.read()
+# signing_key = JsonWebKey.import_key(key_data, {'kty': 'RSA'})
+# with open(jwt_key+'.pub', 'rb') as f:
+#     key_data = f.read()
+# signing_key_pub = JsonWebKey.import_key(key_data, {'kty': 'RSA', 'kid': 'k0'})
+
+logging.info("Generate keys")
+subprocess.run(["openssl", "genrsa", "-out", jwt_key, "2048"])
+subprocess.run(["openssl", "rsa", "-in", jwt_key, "-pubout", "-out", jwt_key+'.pub'])
+
 with open(jwt_key, 'rb') as f:
     key_data = f.read()
-signing_key = JsonWebKey.import_key(key_data, {'kty': 'RSA'})
+    signing_key = JsonWebKey.import_key(key_data, {'kty': 'RSA'})
 with open(jwt_key+'.pub', 'rb') as f:
     key_data = f.read()
-signing_key_pub = JsonWebKey.import_key(key_data, {'kty': 'RSA', 'kid': 'k0'})
-
+    signing_key_pub = JsonWebKey.import_key(key_data, {'kty': 'RSA', 'kid': 'k0'})
 
 def get_session_by_subject(sub):
     for session_id in sessions.keys():
@@ -88,6 +99,7 @@ def all_routes(text):
     log.info("Path '{}'".format(text))
     if text in ['style.css']:
         return flask.Response(flask.render_template(text), mimetype='text/css')
+    flask.abort(404)
 
 @app.route('/logout', methods=['POST'])
 def logout():
