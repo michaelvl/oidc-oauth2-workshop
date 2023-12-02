@@ -1,5 +1,5 @@
 Flask==1.1.2
-Flask-Cors==3.0.10
+Flask-Cors==4.0.0
 jinja2==2.11.3
 uuid==1.30
 authlib==0.15.3
