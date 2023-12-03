@@ -4,8 +4,8 @@ container:
 	docker build -t oidc-oauth2-workshop:latest .
 
 #################
-#IMAGE ?= ghcr.io/michaelvl/oidc-oauth2-workshop:latest
-IMAGE ?= oidc-oauth2-workshop:latest
+IMAGE ?= ghcr.io/michaelvl/oidc-oauth2-workshop:latest
+#IMAGE ?= oidc-oauth2-workshop:latest
 
 .PHONY: run-client
 run-client:
