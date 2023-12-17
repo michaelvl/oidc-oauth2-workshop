@@ -2,44 +2,46 @@ apiVersion: apps/v1
 kind: Deployment
 metadata:
   labels:
-    app: api
-  name: api
+    app: protected-api
+  name: protected-api
 spec:
   replicas: 1
   selector:
     matchLabels:
-      app: api
+      app: protected-api
   template:
     metadata:
       labels:
-        app: api
+        app: protected-api
     spec:
       containers:
-      - image: oidc-oauth2-workshop:latest
+      - image: ghcr.io/michaelvl/oidc-oauth2-workshop:sha-624d3cf
         name: oidc-oauth2-workshop
-        imagePullPolicy: Never
+        imagePullPolicy: IfNotPresent
         command:
         - "python"
         - "/usr/src/protected-api/app/protected-api.py"
-        workingDir: /usr/src/protected-api/app
+        workingDir: /usr/src/protected-api-auth-server/app
         env:
         - name: FLASK_APP
-          value: api-auth-server.py
+          value: protected-api.py
         - name: FLASK_ENV
           value: development
+        - name: BASE_URL
+          value: http://${SPA_GATEWAY_IP}
         - name: OIDC_JWKS_URL
-          value: http://$IDP_HOSTNAME/.well-known/jwks.json
+          value: http://${IDENTITY_PROVIDER_GATEWAY_IP}/.well-known/jwks.json
 ---
 apiVersion: v1
 kind: Service
 metadata:
   labels:
-    app: api
-  name: api
+    app: protected-api
+  name: protected-api
 spec:
   ports:
   - port: 80
     protocol: TCP
     targetPort: 5002
   selector:
-    app: api
+    app: protected-api
