@@ -37,8 +37,8 @@ delete-cluster:
 	kind delete cluster --name kind
 
 #################
-.PHONY: cluster-load-image
-cluster-load-image:
+.PHONY: kind-load-image
+kind-load-image:
 	kind load docker-image oidc-oauth2-workshop:latest --name kind
 
 #################

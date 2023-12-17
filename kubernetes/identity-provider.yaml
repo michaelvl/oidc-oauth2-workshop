@@ -15,9 +15,9 @@ spec:
         app: idp
     spec:
       containers:
-      - image: oidc-oauth2-workshop:latest
+      - image: ghcr.io/michaelvl/oidc-oauth2-workshop:sha-624d3cf
         name: oidc-oauth2-workshop
-        imagePullPolicy: Never
+        imagePullPolicy: IfNotPresent
         command:
         - "python"
         - "/usr/src/idp-auth-server/app/idp-auth-server.py"
@@ -27,6 +27,8 @@ spec:
           value: idp-auth-server.py
         - name: FLASK_ENV
           value: development
+        - name: APP_BASE_URL
+          value: http://${IDENTITY_PROVIDER_GATEWAY_IP}
 #        - name: ACCESS_TOKEN_LIFETIME
 #          value: 
 #        - name: REFRESH_TOKEN_LIFETIME
